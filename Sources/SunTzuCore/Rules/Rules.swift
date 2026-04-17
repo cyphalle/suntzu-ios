@@ -3,14 +3,25 @@
 public enum Rules {
     /// All legal actions in the current state.
     public static func legalActions(in state: GameState) -> [GameAction] {
-        // TODO: implement per SPEC §5.3, §12 M2+.
-        return []
+        if case .gameOver = state.phase { return [] }
+
+        switch state.phase {
+        case .placement:
+            return placementActions(in: state)
+        default:
+            // TODO: legalActions for reveal/scoring/draw in later milestones.
+            return []
+        }
     }
 
     /// Apply an action, returning the new state. Throws if illegal.
     public static func apply(_ action: GameAction, to state: GameState) throws -> GameState {
-        // TODO: implement per SPEC §5 and milestones M2..M8.
-        throw RulesError.notImplemented("Rules.apply")
+        switch action {
+        case let .placeCard(player, province, card):
+            return try applyPlaceCard(player: player, province: province, card: card, state: state)
+        default:
+            throw RulesError.notImplemented("Rules.apply: \(action)")
+        }
     }
 
     /// Whether the game has ended.
@@ -23,6 +34,64 @@ public enum Rules {
     public static func winner(of state: GameState) -> Player? {
         if case .gameOver(let winner) = state.phase { return winner }
         return nil
+    }
+
+    // MARK: - Placement
+
+    private static func placementActions(in state: GameState) -> [GameAction] {
+        var actions: [GameAction] = []
+        for player in [Player.blue, .red] {
+            let usedProvinces = Set(
+                state.placements.filter { $0.player == player }.map(\.province)
+            )
+            guard usedProvinces.count < 5 else { continue }
+            let hand = state.players[player]?.hand ?? []
+            for province in Province.allCases where !usedProvinces.contains(province) {
+                for card in hand {
+                    actions.append(.placeCard(player: player, province: province, card: card))
+                }
+            }
+        }
+        return actions
+    }
+
+    private static func applyPlaceCard(
+        player: Player,
+        province: Province,
+        card: Card,
+        state: GameState
+    ) throws -> GameState {
+        guard case .placement = state.phase else {
+            throw RulesError.illegalAction("placeCard outside placement phase")
+        }
+        guard card.owner == player else {
+            throw RulesError.illegalAction("cannot place opponent card")
+        }
+        let alreadyPlaced = state.placements.contains {
+            $0.player == player && $0.province == province
+        }
+        guard !alreadyPlaced else {
+            throw RulesError.illegalAction("\(player) already placed in \(province)")
+        }
+        guard var playerState = state.players[player] else {
+            throw RulesError.malformedState("missing player \(player)")
+        }
+        guard let idx = playerState.hand.firstIndex(where: { $0.id == card.id }) else {
+            throw RulesError.illegalAction("card \(card.id) not in \(player) hand")
+        }
+
+        var newState = state
+        playerState.hand.remove(at: idx)
+        newState.players[player] = playerState
+        newState.placements.append(Placement(player: player, province: province, card: card))
+
+        // Transition placement → reveal once 5+5 cards are down.
+        if newState.placements.count == 10 {
+            // DEFAULT: see SPEC §13 Q#3/§5.5 — for T1 the reveal order is fixed.
+            // Turns 2+ privilege-holder choice is handled later (post-M6).
+            newState.phase = .reveal(nextIndex: 0, order: Province.turn1RevealOrder)
+        }
+        return newState
     }
 }
 
