@@ -19,6 +19,8 @@ public enum Rules {
         switch action {
         case let .placeCard(player, province, card):
             return try applyPlaceCard(player: player, province: province, card: card, state: state)
+        case .revealNext:
+            return try applyRevealNext(state: state)
         default:
             throw RulesError.notImplemented("Rules.apply: \(action)")
         }
@@ -54,6 +56,47 @@ public enum Rules {
         }
         return actions
     }
+
+    // MARK: - Reveal
+
+    private static func applyRevealNext(state: GameState) throws -> GameState {
+        guard case .reveal(let nextIndex, let order) = state.phase else {
+            throw RulesError.illegalAction("revealNext outside reveal phase")
+        }
+        guard nextIndex < order.count else {
+            throw RulesError.illegalAction("no more reveals in current order")
+        }
+        let province = order[nextIndex]
+        let here = state.placements.filter { $0.province == province }
+        guard let blue = here.first(where: { $0.player == .blue }),
+              let red = here.first(where: { $0.player == .red }) else {
+            throw RulesError.malformedState("expected one blue and one red placement on \(province)")
+        }
+
+        var newState = state
+        switch Combat.resolve(blue: blue.card, red: red.card) {
+        case .tie:
+            break
+        case let .result(winner, delta):
+            newState = try ArmyPlacement.applyCombatDelta(
+                to: newState,
+                province: province,
+                winner: winner,
+                delta: delta
+            )
+        }
+
+        let newIndex = nextIndex + 1
+        if newIndex >= order.count {
+            // End-of-reveal transition. Scoring/draw phases implemented in M5/M6.
+            newState.phase = Scoring.isScoringTurn(newState.turn) ? .scoring : .draw
+        } else {
+            newState.phase = .reveal(nextIndex: newIndex, order: order)
+        }
+        return newState
+    }
+
+    // MARK: - Placement
 
     private static func applyPlaceCard(
         player: Player,
