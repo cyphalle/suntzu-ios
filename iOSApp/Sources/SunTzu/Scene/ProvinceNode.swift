@@ -12,10 +12,8 @@ final class ProvinceNode: SKNode {
     private let armiesLabel = SKLabelNode()
     private let placementsIndicator = SKLabelNode()
 
-    // Score display values — three small labels in a row.
-    private let t3Label = SKLabelNode()
-    private let t6Label = SKLabelNode()
-    private let t9Label = SKLabelNode()
+    /// Score display — single attributed label with inline highlighting.
+    private let scoreLabel = SKLabelNode()
 
     // One badge per player who's already played a 6 here.
     private let blueSixMarker = SKLabelNode()
@@ -36,17 +34,13 @@ final class ProvinceNode: SKNode {
         nameLabel.verticalAlignmentMode = .center
         addChild(nameLabel)
 
-        for (label, placeholder) in [(t3Label, "1"), (t6Label, "1"), (t9Label, "1")] {
-            label.fontName = "AvenirNext-Medium"
-            label.fontSize = 11
-            label.text = placeholder
-            label.fontColor = UIColor.white.withAlphaComponent(0.5)
-            label.verticalAlignmentMode = .center
-            addChild(label)
-        }
+        scoreLabel.verticalAlignmentMode = .center
+        scoreLabel.horizontalAlignmentMode = .center
+        scoreLabel.numberOfLines = 1
+        addChild(scoreLabel)
 
         armiesLabel.fontName = "AvenirNext-Bold"
-        armiesLabel.fontSize = 24
+        armiesLabel.fontSize = 26
         armiesLabel.fontColor = .white
         armiesLabel.verticalAlignmentMode = .center
         addChild(armiesLabel)
@@ -56,7 +50,7 @@ final class ProvinceNode: SKNode {
             (redSixMarker, UIColor.systemRed),
         ] {
             label.fontName = "AvenirNext-Bold"
-            label.fontSize = 11
+            label.fontSize = 12
             label.fontColor = color
             label.text = "6"
             label.verticalAlignmentMode = .center
@@ -65,9 +59,9 @@ final class ProvinceNode: SKNode {
         }
 
         placementsIndicator.fontName = "AvenirNext-Regular"
-        placementsIndicator.fontSize = 12
+        placementsIndicator.fontSize = 14
         placementsIndicator.fontColor = .white
-        placementsIndicator.alpha = 0.7
+        placementsIndicator.alpha = 0.75
         placementsIndicator.verticalAlignmentMode = .center
         addChild(placementsIndicator)
 
@@ -101,32 +95,21 @@ final class ProvinceNode: SKNode {
         disc.lineWidth = 2
         armiesLabel.text = provinceState.armies == 0 ? "" : "\(provinceState.armies)"
 
-        // Score displays — highlight the upcoming scoring value.
+        // Build a single attributed string "T3 · T6 · T9" with the next scoring
+        // turn's value highlighted.
         let nextTurn = Self.nextScoringTurn(turn)
         if let d = display {
-            t3Label.text = "\(d.t3)"
-            t6Label.text = "\(d.t6)"
-            t9Label.text = "\(d.t9)"
+            scoreLabel.attributedText = Self.scoreDisplayString(
+                t3: d.t3, t6: d.t6, t9: d.t9, nextTurn: nextTurn
+            )
         } else {
-            t3Label.text = "—"
-            t6Label.text = "—"
-            t9Label.text = "—"
-        }
-        for (label, t) in [(t3Label, 3), (t6Label, 6), (t9Label, 9)] {
-            if t == nextTurn {
-                label.fontColor = .systemYellow
-                label.fontSize = 13
-            } else {
-                label.fontColor = UIColor.white.withAlphaComponent(0.45)
-                label.fontSize = 11
-            }
+            scoreLabel.text = "—"
+            scoreLabel.fontColor = UIColor.white.withAlphaComponent(0.4)
         }
 
-        // Six-markers per player.
         blueSixMarker.alpha = provinceState.sixMarkers.contains(.blue) ? 1 : 0
         redSixMarker.alpha = provinceState.sixMarkers.contains(.red) ? 1 : 0
 
-        // Face-down placement dots.
         let bluePlaced = placementsHere.contains { $0.player == .blue }
         let redPlaced = placementsHere.contains { $0.player == .red }
         var tokens: [String] = []
@@ -150,20 +133,49 @@ final class ProvinceNode: SKNode {
         let rect = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
         disc.path = CGPath(ellipseIn: rect, transform: nil)
 
-        nameLabel.position = CGPoint(x: 0, y: radius * 0.55)
+        nameLabel.position = CGPoint(x: 0, y: radius * 0.62)
+        scoreLabel.position = CGPoint(x: 0, y: radius * 0.30)
+        armiesLabel.position = CGPoint(x: 0, y: -radius * 0.18)
+        blueSixMarker.position = CGPoint(x: -radius * 0.55, y: -radius * 0.58)
+        redSixMarker.position = CGPoint(x: radius * 0.55, y: -radius * 0.58)
+        placementsIndicator.position = CGPoint(x: 0, y: -radius * 1.05)
+    }
 
-        let scoreY = radius * 0.28
-        let dx = radius * 0.24
-        t3Label.position = CGPoint(x: -dx, y: scoreY)
-        t6Label.position = CGPoint(x: 0, y: scoreY)
-        t9Label.position = CGPoint(x: dx, y: scoreY)
+    // MARK: - attributed score display
 
-        armiesLabel.position = CGPoint(x: 0, y: -radius * 0.15)
+    private static func scoreDisplayString(
+        t3: Int,
+        t6: Int,
+        t9: Int,
+        nextTurn: Int
+    ) -> NSAttributedString {
+        let base = UIFont(name: "AvenirNext-Medium", size: 12)
+            ?? UIFont.systemFont(ofSize: 12, weight: .medium)
+        let highlight = UIFont(name: "AvenirNext-Bold", size: 15)
+            ?? UIFont.systemFont(ofSize: 15, weight: .bold)
 
-        blueSixMarker.position = CGPoint(x: -radius * 0.55, y: -radius * 0.55)
-        redSixMarker.position = CGPoint(x: radius * 0.55, y: -radius * 0.55)
+        let dimAttrs: [NSAttributedString.Key: Any] = [
+            .font: base,
+            .foregroundColor: UIColor.white.withAlphaComponent(0.55),
+        ]
+        let sepAttrs: [NSAttributedString.Key: Any] = [
+            .font: base,
+            .foregroundColor: UIColor.white.withAlphaComponent(0.35),
+        ]
+        let highlightAttrs: [NSAttributedString.Key: Any] = [
+            .font: highlight,
+            .foregroundColor: UIColor.systemYellow,
+        ]
 
-        placementsIndicator.position = CGPoint(x: 0, y: -radius * 0.88)
+        let string = NSMutableAttributedString()
+        for (i, pair) in [(t3, 3), (t6, 6), (t9, 9)].enumerated() {
+            if i > 0 {
+                string.append(NSAttributedString(string: " · ", attributes: sepAttrs))
+            }
+            let attrs = pair.1 == nextTurn ? highlightAttrs : dimAttrs
+            string.append(NSAttributedString(string: "\(pair.0)", attributes: attrs))
+        }
+        return string
     }
 
     // MARK: - helpers
