@@ -48,6 +48,20 @@ public enum Arena {
             let action: GameAction
             if !engineActions.isEmpty {
                 action = engineActions[0]
+            } else if case .placement = state.phase {
+                // Alternate during placement: whoever has fewer placements plays next.
+                let bluePlaced = state.placements.filter { $0.player == .blue }.count
+                let redPlaced = state.placements.filter { $0.player == .red }.count
+                let blueTurn = bluePlaced <= redPlaced && !blueActions.isEmpty
+                if blueTurn {
+                    action = blueAgent.choose(in: state, from: blueActions)
+                } else if !redActions.isEmpty {
+                    action = redAgent.choose(in: state, from: redActions)
+                } else if !blueActions.isEmpty {
+                    action = blueAgent.choose(in: state, from: blueActions)
+                } else {
+                    break
+                }
             } else if !blueActions.isEmpty {
                 action = blueAgent.choose(in: state, from: blueActions)
             } else {
