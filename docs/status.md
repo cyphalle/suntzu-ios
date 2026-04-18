@@ -19,7 +19,8 @@ plan and DoD.
 | M10 | `RandomAgent` baseline + 1 000-game termination/balance test | `RandomAgentTests` ×1 | 71 | ✅ |
 | M11 | `HeuristicAgent` + `Evaluator` + `Arena` + `GameAgent` protocol — beats Random ≥ 70 / 100 | `HeuristicAgentTests` ×1 | 72 | ✅ |
 | M12 | `MCTSAgent` (2-ply minimax with blended random rollouts) — beats Heuristic ≥ 60 / 100 | `MCTSAgentTests` ×1 | 73 | ✅ |
-| M13 | SwiftUI + SpriteKit iOS app — scaffolded (main menu, game view, SpriteKit board, hand, phase controls, save/resume, MCTS AI wiring) | — | 73 | 🟡 scaffold |
+| M13 | SwiftUI iOS app (SpriteKit retired, see ADR-0013) — main menu, pure-SwiftUI board, hand with drag & drop + tap-tap, draft/validate placement flow, reveal / draw controls, save & resume, MCTS AI wiring, full Kenney medieval art pass (ADR-0014) | — | 73 | 🟢 playable |
+| Post-M13 | Randomised score displays + cemetery troop economy (ADR-0012), UI exposes reserve / cemetery / score displays / sixMarkers, Valider button, crash-safe illegal-action handling | covered by existing suite | 73 | ✅ |
 
 ## Determinism invariants
 
@@ -39,9 +40,9 @@ In release mode the full suite finishes under a minute:
 The MCTS test is slow but self-contained; skip it with
 `--skip MCTSAgentTests` for tight inner loops.
 
-## Known deferred work (all inside the core boundary)
+## Known deferred work
 
-Cross-reference each with the relevant ADR for the "why".
+### Engine (inside the core boundary)
 
 - Explicit multi-source `specifyWithdrawal` pause/resume phase
   (auto-resolved canonically today — see [ADR-0005](adr/0005-auto-resolve-multi-source-withdrawals.md))
@@ -53,8 +54,20 @@ Cross-reference each with the relevant ADR for the "why".
   (marked used today but no deck mutation)
 - `pendingExtraStrategy` consumption action
   (flag is set by `charsDeGuerre` but no action to pick the 2nd strategy yet)
-- Real `ScoreDisplay` values for the five provinces
-  (stubbed to `(0, 0, 0)` — see [defaults.md](defaults.md) Q#4)
 
-None of these block gameplay in the current fuzz / AI tests, but they need to
-land before the UI milestone exposes them.
+### UI (iOS app)
+
+- **Advanced mode** — strategy-card selection flow + event-card toggle.
+  Engine supports both; the UI launches games with `events: false` and
+  empty `strategyCards` (see [ADR-0011](adr/0011-ios-app-architecture.md)).
+- **`.useRenfort` button** — engine wired, UI doesn't expose the
+  "discard a non-permanent to recover a cube from the cemetery"
+  action yet.
+- **App icon** — placeholder `AppIcon.appiconset` (empty) silences the
+  Xcode build error; a real icon hasn't been drawn yet.
+- **Province selection at setup** — structure images (`province_qin` etc.)
+  were chosen from thumbnails without playtest; swap the Kenney
+  `Structure_XX` indices via Assets.xcassets once preferred ones surface.
+
+None of these block gameplay. A full game against the MCTS AI is playable
+end-to-end on iOS as of this snapshot.

@@ -21,3 +21,5 @@ the old one `superseded by ADR-00XX`.
 | [ADR-0010](0010-mcts-as-2ply-with-rollouts.md) | "MCTS" implemented as 2-ply minimax + blended rollouts | accepted |
 | [ADR-0011](0011-ios-app-architecture.md) | iOS app architecture (SwiftUI + SpriteKit + XcodeGen) | accepted |
 | [ADR-0012](0012-troop-economy-cemetery.md) | Troop economy: 18/3 starting split, cemetery costs at reveal | accepted |
+| [ADR-0013](0013-draft-validate-placement-ux.md) | Placement UX: local drafts + validate step | accepted |
+| [ADR-0014](0014-kenney-asset-integration.md) | Kenney CC0 asset integration | accepted |

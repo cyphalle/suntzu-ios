@@ -18,9 +18,10 @@ SunTzuCore package            — pure game engine (no UI, no I/O)
     Setup/                    — newGame, deck builders
     AI/                       — GameAgent protocol, Random / Heuristic / MCTS agents, Arena, Evaluator
     Util/                     — SeededRNG
-  Tests/SunTzuCoreTests/      — XCTest suite (73 tests as of M12)
+  Tests/SunTzuCoreTests/      — XCTest suite (73 tests)
+iOSApp/                       — SwiftUI front-end, Kenney CC0 art, XcodeGen config
 SPEC.md                       — the source-of-truth spec this repo implements
-docs/                         — this folder
+docs/                         — this folder (ADRs, status, defaults)
 ```
 
 ## Running the suite
@@ -40,6 +41,8 @@ swift test --filter MCTSAgentTests -c release   # the slow one, ~3.5 min
 | M10       | Random baseline agent | ✅ |
 | M11       | Heuristic agent (beats Random ≥ 70 / 100) | ✅ |
 | M12       | MCTS-style agent (beats Heuristic ≥ 60 / 100) | ✅ |
-| M13       | SwiftUI + SpriteKit iOS app | 🚧 pending |
+| M13       | SwiftUI iOS app, playable end-to-end, Kenney art | 🟢 |
+| Post-M13  | Random score displays, cemetery economy, draft/validate UX, Kenney assets | ✅ |
 
-See [status.md](status.md) for a milestone-by-milestone breakdown.
+See [status.md](status.md) for a milestone-by-milestone breakdown and the
+deferred-work list.

@@ -6,9 +6,19 @@ Personal, non-commercial project.
 ## Status
 
 Core engine + three AI levels (random, heuristic, MCTS-style) complete —
-**73 tests passing**, milestones M0 – M12 shipped. SwiftUI + SpriteKit UI
-(M13) is scaffolded in [`iOSApp/`](iOSApp/) — generate the Xcode project
-with `cd iOSApp && xcodegen generate && open SunTzu.xcodeproj`.
+**73 tests passing**, milestones M0 – M12 shipped. iOS app (M13) is
+**playable** end-to-end against the MCTS AI: pure-SwiftUI board,
+drag-drop + tap-tap placement with a draft/validate step, reveal/draw
+controls, save & resume, full Kenney medieval art pass. Generate the
+Xcode project with:
+
+```sh
+cd iOSApp && xcodegen generate && open SunTzu.xcodeproj
+```
+
+Deferred: strategy-card UI, event-card toggle, `.useRenfort` button,
+custom app icon. See [`docs/status.md`](docs/status.md) for the full
+deferred-work list.
 
 ## Stack
 

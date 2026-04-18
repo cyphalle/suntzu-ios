@@ -1,49 +1,59 @@
 # SunTzu iOS app
 
-SwiftUI + SpriteKit front-end for the `SunTzuCore` engine.
+SwiftUI front-end for the `SunTzuCore` engine. The board is pure SwiftUI
+with Kenney medieval CC0 art — no SpriteKit.
 
-## Status (M13, first pass)
+## Status
 
-- Main menu with **New game** and **Resume** entries
-- Full placement → reveal → scoring → draw → next turn loop
-- Human plays **blue** against the MCTS agent playing **red**
+- Main menu on a wooden banner, "Nouvelle partie" / "Reprendre" buttons
+- Pure-SwiftUI board: tiled parchment texture, five province
+  structures, adjacency lines, unit sprites for committed armies
+- Hand with wood-textured cards, **drag & drop** onto provinces OR
+  classic **tap card → tap province**; drafts face-up above the disc
+  with a yellow border
+- **Valider** button commits the five drafts at once (disabled until
+  `5 / 5`); tap a drafted province to retract
+- Reveal: one-tap "Révéler le combat suivant"
+- Draw phase: keep-top / keep-bottom card picker, or pass on empty deck
+- Game-over screen with summary + return-to-menu
 - Save/resume via a JSON snapshot in `Documents/suntzu-game.json`
-- Game-over screen with a turn summary and return-to-menu button
+
+Human plays **blue** against the **MCTS** agent playing red.
 
 ## Not yet wired
 
-- Strategy-card selection UI (engine supports them, UI defers)
-- Event-card variant (engine supports it, UI starts games with `events: false`)
-- Explicit withdrawal-source choice (canonical auto-resolution by default — ADR-0005)
-- Custom art / animations (scene uses coloured discs for provinces, discs only)
+- Strategy-card selection (engine supports; UI launches with empty `strategyCards`)
+- Event-card variant (engine supports; UI launches with `events: false`)
+- Explicit withdrawal-source prompt (canonical auto-resolution — ADR-0005)
+- `.useRenfort` button (engine wired, no UI entry yet)
+- Custom app icon (empty placeholder silences Xcode)
 
 ## Layout
 
 ```
 iOSApp/
-├── project.yml                              # XcodeGen input
+├── project.yml                               # XcodeGen input
+├── CREDITS.md                                # Kenney asset attribution
 └── Sources/SunTzu/
     ├── App/
-    │   └── SunTzuApp.swift                  # @main + RootView
+    │   └── SunTzuApp.swift                   # @main + RootView
     ├── ViewModels/
-    │   └── GameStore.swift                  # @Observable, save/load, AI dispatch
+    │   └── GameStore.swift                   # @Observable, save/load, drafts, AI dispatch
     ├── Views/
     │   ├── MainMenuView.swift
     │   ├── GameView.swift
-    │   ├── TopBarView.swift
-    │   ├── BoardView.swift                  # SwiftUI → SpriteView wrapper
-    │   ├── HandView.swift
-    │   ├── PhaseControlsView.swift
+    │   ├── TopBarView.swift                  # turn, score track, per-player pools
+    │   ├── BoardView.swift                   # SwiftUI board + ProvinceDiscView
+    │   ├── HandView.swift                    # draggable cards
+    │   ├── PhaseControlsView.swift           # Valider / Révéler / draw
     │   └── GameOverView.swift
-    └── Scene/
-        ├── BoardScene.swift                 # SKScene + tap routing
-        └── ProvinceNode.swift               # per-province token
+    └── Assets.xcassets/                       # 14 Kenney imagesets (CC0)
 ```
 
 ## Generating the Xcode project
 
-We don't commit the `.xcodeproj` — it's generated on demand from
-`project.yml` by [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+The `.xcodeproj` is gitignored and generated on demand from
+`project.yml` via [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```sh
 brew install xcodegen   # if not installed
@@ -52,8 +62,11 @@ xcodegen generate
 open SunTzu.xcodeproj
 ```
 
-Once Xcode opens the project it picks up `SunTzuCore` as a local Swift
-Package via `packages.path: ..`. Build & run on a device or simulator.
+Xcode picks up `SunTzuCore` as a local Swift Package via
+`packages.path: ..`. Build & run on a device or simulator.
+
+After any change to the filesystem layout (added / removed files in
+`Sources/`), re-run `xcodegen generate` before building.
 
 ## Signing
 
@@ -65,19 +78,19 @@ pick your personal team, or edit `project.yml` and re-run
 ## MCTS budget
 
 `GameStore` constructs the MCTS agent with `simulationsPerMove: 300`,
-tuned for responsiveness on real iPhone hardware. The move computation
-runs off-main via `Task.detached`; the UI shows a short "thinking…"
+tuned for responsiveness on iPhone hardware. Move computation runs
+off-main via `Task.detached`; the UI shows a "L'adversaire réfléchit…"
 overlay (`GameStore.isThinking`) while MCTS evaluates.
 
 ## Links to the engine
 
-- Engine entry points the UI calls: `GameSetup.newGame`, `Rules.apply`,
-  `Rules.legalActions`, `Rules.isTerminal`, `Rules.winner`, `Arena.actionOwner`
+- Entry points the UI calls: `GameSetup.newGame`, `Rules.apply`,
+  `Rules.legalActions`, `Rules.isTerminal`, `Rules.winner`,
+  `Arena.actionOwner`
 - Agent: `MCTSAgent`
 
 ## Why no committed .xcodeproj?
 
-Xcode projects are near-impossible to review in git and auto-generate
-diffs that don't survive a merge. Keeping `project.yml` as the source
-of truth and generating locally is the same pattern used by most
-modern iOS projects.
+Xcode projects produce unreadable diffs and constant merge conflicts.
+Keeping `project.yml` as the source of truth and generating locally is
+the standard modern-iOS pattern.
