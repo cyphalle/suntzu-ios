@@ -5,7 +5,7 @@ struct TopBarView: View {
     let store: GameStore
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack {
                 Label("Tour \(store.state.turn) / 9", systemImage: "flag.fill")
                 Spacer()
@@ -17,6 +17,12 @@ struct TopBarView: View {
             .foregroundStyle(.white)
 
             scoreTrack
+
+            HStack(spacing: 12) {
+                playerChip(player: .blue, color: .blue, title: "Vous")
+                Spacer()
+                playerChip(player: .red, color: .red, title: "IA")
+            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
@@ -34,10 +40,32 @@ struct TopBarView: View {
         }
     }
 
+    private func playerChip(player: Player, color: Color, title: String) -> some View {
+        let ps = store.state.players[player]
+        return HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(title).font(.caption2.bold())
+            counter(icon: "shield.fill", value: ps?.reserve ?? 0, tint: .white)
+            counter(icon: "xmark.seal.fill", value: ps?.cemetery ?? 0, tint: .white.opacity(0.75))
+            counter(icon: "rectangle.stack.fill", value: ps?.hand.count ?? 0, tint: .white.opacity(0.75))
+        }
+        .foregroundStyle(.white)
+        .font(.caption2)
+    }
+
+    private func counter(icon: String, value: Int, tint: Color) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: icon).font(.caption2)
+            Text("\(value)").monospacedDigit()
+        }
+        .foregroundStyle(tint)
+    }
+
     private var scoreTrack: some View {
         GeometryReader { geo in
             let trackMax = 9
-            let normalized = CGFloat(store.state.scoreTrack + trackMax) / CGFloat(2 * trackMax)
+            let clampedTrack = max(-trackMax, min(trackMax, store.state.scoreTrack))
+            let normalized = CGFloat(clampedTrack + trackMax) / CGFloat(2 * trackMax)
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.white.opacity(0.1))

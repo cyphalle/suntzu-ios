@@ -25,21 +25,37 @@ struct CardView: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text(label)
-                .font(.system(size: 26, weight: .bold, design: .serif))
-                .foregroundStyle(textColor)
-            Text(caption)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.7))
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 2) {
+                Text(label)
+                    .font(.system(size: 26, weight: .bold, design: .serif))
+                    .foregroundStyle(textColor)
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(width: 56, height: 86)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.yellow : Color.white.opacity(0.2), lineWidth: isSelected ? 3 : 1)
+            )
+
+            if let cost = costLabel {
+                HStack(spacing: 2) {
+                    Text(cost)
+                    Image(systemName: "xmark.seal.fill").font(.system(size: 8))
+                }
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.black.opacity(0.7))
+                .clipShape(Capsule())
+                .offset(x: -4, y: 4)
+            }
         }
-        .frame(width: 56, height: 86)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? Color.yellow : Color.white.opacity(0.2), lineWidth: isSelected ? 3 : 1)
-        )
         .offset(y: isSelected ? -8 : 0)
         .animation(.spring(duration: 0.2), value: isSelected)
     }
@@ -73,5 +89,15 @@ struct CardView: View {
 
     private var background: Color {
         card.owner == .blue ? Color.blue.opacity(0.25) : Color.red.opacity(0.25)
+    }
+
+    /// Returns "-1" for a 1-troop cemetery cost, "-2" for a 2-troop cost, or nil
+    /// for cards that don't send cubes to the cemetery on reveal.
+    private var costLabel: String? {
+        switch card.value {
+        case .numeric(6):                      return "−1"
+        case .bonus(let k) where k >= 2:       return "−\(k - 1)"
+        default:                               return nil
+        }
     }
 }

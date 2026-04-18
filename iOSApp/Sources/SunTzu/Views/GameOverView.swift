@@ -64,8 +64,12 @@ struct GameOverView: View {
             row("Tours joués", value: "\(store.state.turn)")
             row("Pestes jouées", value: "\(store.state.pestesPlayedTotal)")
             row(
-                "Réserve bleue / rouge",
+                "Réserve (vous / IA)",
                 value: "\(store.state.players[.blue]?.reserve ?? 0) / \(store.state.players[.red]?.reserve ?? 0)"
+            )
+            row(
+                "Cimetière (vous / IA)",
+                value: "\(store.state.players[.blue]?.cemetery ?? 0) / \(store.state.players[.red]?.cemetery ?? 0)"
             )
         }
         .foregroundStyle(.white.opacity(0.85))

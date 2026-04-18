@@ -31,7 +31,12 @@ final class BoardScene: SKScene {
         currentState = state
         for province in Province.allCases {
             guard let node = nodes[province], let pv = state.provinces[province] else { continue }
-            node.apply(provinceState: pv, placementsHere: placements(on: province, in: state))
+            node.apply(
+                provinceState: pv,
+                placementsHere: placements(on: province, in: state),
+                display: state.scoreDisplays[province],
+                turn: state.turn
+            )
         }
     }
 
