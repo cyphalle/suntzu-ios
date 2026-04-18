@@ -2,8 +2,8 @@
 .build/
 .swiftpm/
 Packages/
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
+*.xcodeproj/
+*.xcworkspace/
 DerivedData/
 *.xcuserstate
 Package.resolved

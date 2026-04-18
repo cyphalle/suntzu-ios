@@ -7,7 +7,8 @@ Personal, non-commercial project.
 
 Core engine + three AI levels (random, heuristic, MCTS-style) complete —
 **73 tests passing**, milestones M0 – M12 shipped. SwiftUI + SpriteKit UI
-(M13) is next.
+(M13) is scaffolded in [`iOSApp/`](iOSApp/) — generate the Xcode project
+with `cd iOSApp && xcodegen generate && open SunTzu.xcodeproj`.
 
 ## Stack
 

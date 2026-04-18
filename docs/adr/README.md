@@ -19,3 +19,4 @@ the old one `superseded by ADR-00XX`.
 | [ADR-0008](0008-evaluator-fallback-bias.md) | Evaluator fallback bias for zeroed score displays | accepted |
 | [ADR-0009](0009-arena-alternates-placement.md) | `Arena` alternates blue/red during placement | accepted |
 | [ADR-0010](0010-mcts-as-2ply-with-rollouts.md) | "MCTS" implemented as 2-ply minimax + blended rollouts | accepted |
+| [ADR-0011](0011-ios-app-architecture.md) | iOS app architecture (SwiftUI + SpriteKit + XcodeGen) | accepted |

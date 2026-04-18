@@ -19,7 +19,7 @@ plan and DoD.
 | M10 | `RandomAgent` baseline + 1 000-game termination/balance test | `RandomAgentTests` ×1 | 71 | ✅ |
 | M11 | `HeuristicAgent` + `Evaluator` + `Arena` + `GameAgent` protocol — beats Random ≥ 70 / 100 | `HeuristicAgentTests` ×1 | 72 | ✅ |
 | M12 | `MCTSAgent` (2-ply minimax with blended random rollouts) — beats Heuristic ≥ 60 / 100 | `MCTSAgentTests` ×1 | 73 | ✅ |
-| M13 | SwiftUI + SpriteKit iOS app | — | — | 🚧 |
+| M13 | SwiftUI + SpriteKit iOS app — scaffolded (main menu, game view, SpriteKit board, hand, phase controls, save/resume, MCTS AI wiring) | — | 73 | 🟡 scaffold |
 
 ## Determinism invariants
 
