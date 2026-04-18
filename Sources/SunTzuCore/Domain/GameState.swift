@@ -18,6 +18,20 @@ public struct ScoreDisplay: Hashable, Sendable, Codable {
         default: return 0
         }
     }
+
+    /// Sample one display: three values in [1, 5] whose sum lies in [5, 10].
+    /// Rejection sampling — mean sum with uniform [1,5] is 9, so acceptance is high.
+    public static func random(using rng: inout SeededRNG) -> ScoreDisplay {
+        while true {
+            let t3 = Int(rng.next() % 5) + 1
+            let t6 = Int(rng.next() % 5) + 1
+            let t9 = Int(rng.next() % 5) + 1
+            let total = t3 + t6 + t9
+            if (5...10).contains(total) {
+                return ScoreDisplay(t3: t3, t6: t6, t9: t9)
+            }
+        }
+    }
 }
 
 /// Per-province state — SPEC §6.1.
@@ -40,7 +54,10 @@ public struct PlayerState: Hashable, Sendable, Codable {
     public var hand: [Card]
     public var deck: [Card]
     public var reserve: Int
-    public var setAside: Int
+    /// Cubes set aside in the "cemetery" pool — cards like +2 / +3 / numeric(6)
+    /// send cubes here when revealed; a non-permanent discard can pull one back
+    /// into `reserve` via `.useRenfort`. SPEC §5.11 + "gestion des troupes".
+    public var cemetery: Int
     public var strategyCards: [StrategyCard]
     public var usedStrategies: Set<StrategyCard>
     public var sixesPlayed: Int
@@ -49,7 +66,7 @@ public struct PlayerState: Hashable, Sendable, Codable {
         hand: [Card] = [],
         deck: [Card] = [],
         reserve: Int = 0,
-        setAside: Int = 0,
+        cemetery: Int = 0,
         strategyCards: [StrategyCard] = [],
         usedStrategies: Set<StrategyCard> = [],
         sixesPlayed: Int = 0
@@ -57,7 +74,7 @@ public struct PlayerState: Hashable, Sendable, Codable {
         self.hand = hand
         self.deck = deck
         self.reserve = reserve
-        self.setAside = setAside
+        self.cemetery = cemetery
         self.strategyCards = strategyCards
         self.usedStrategies = usedStrategies
         self.sixesPlayed = sixesPlayed

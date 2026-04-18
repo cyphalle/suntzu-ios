@@ -59,11 +59,14 @@ final class FullTurnTests: XCTestCase {
         XCTAssertEqual(s.provinces[.wu]?.controller, .blue)
         XCTAssertEqual(s.provinces[.wu]?.armies, 3)
 
-        // Reserve bookkeeping — beginner starts at 21 each.
-        // Blue placed 1 + 1 + 3 = 5 → 21 - 5 = 16.
-        // Red placed 3 + 7 = 10 → 21 - 10 = 11.
+        // Reserve bookkeeping — beginner starts at 21 reserve, 0 cemetery.
+        // Blue placed 1 + 1 + 3 = 5 combat troops, played no 6 / +2 / +3 → 21 - 5 = 16, cemetery 0.
+        // Red placed 3 + 7 = 10 combat troops, played a numeric(6) on jinYan → 1 cube to cemetery.
+        // Red reserve = 21 - 10 - 1 = 10, cemetery = 1.
         XCTAssertEqual(s.players[.blue]?.reserve, 16)
-        XCTAssertEqual(s.players[.red]?.reserve, 11)
+        XCTAssertEqual(s.players[.blue]?.cemetery, 0)
+        XCTAssertEqual(s.players[.red]?.reserve, 10)
+        XCTAssertEqual(s.players[.red]?.cemetery, 1)
 
         // Turn 1 is not a scoring turn → end of reveal transitions to .draw,
         // which automatically processes placements (permanents return, others discarded).

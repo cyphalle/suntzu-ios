@@ -100,21 +100,21 @@ final class DeckCompositionTests: XCTestCase {
         XCTAssertNotEqual(blueHand1, blueHand3, "different seed should yield different shuffle")
     }
 
-    // MARK: - reserve / setAside bookkeeping
+    // MARK: - reserve / cemetery bookkeeping
 
-    func test_newGame_standardReserveAndSetAside() {
+    func test_newGame_standardReserveAndCemetery() {
         let s = GameSetup.newGame(seed: 1, beginner: false)
-        // Standard: 18 armies = 15 reserve + 3 setAside.
-        XCTAssertEqual(s.players[.blue]?.reserve, 15)
-        XCTAssertEqual(s.players[.blue]?.setAside, 3)
-        XCTAssertEqual(s.players[.red]?.reserve, 15)
-        XCTAssertEqual(s.players[.red]?.setAside, 3)
+        // Standard: 21 armies = 18 reserve + 3 cemetery.
+        XCTAssertEqual(s.players[.blue]?.reserve, 18)
+        XCTAssertEqual(s.players[.blue]?.cemetery, 3)
+        XCTAssertEqual(s.players[.red]?.reserve, 18)
+        XCTAssertEqual(s.players[.red]?.cemetery, 3)
     }
 
-    func test_newGame_beginnerReserveAndSetAside() {
+    func test_newGame_beginnerReserveAndCemetery() {
         let s = GameSetup.newGame(seed: 1, beginner: true)
-        // Beginner: 21 armies = 21 reserve + 0 setAside.
+        // Beginner: 21 armies = 21 reserve + 0 cemetery.
         XCTAssertEqual(s.players[.blue]?.reserve, 21)
-        XCTAssertEqual(s.players[.blue]?.setAside, 0)
+        XCTAssertEqual(s.players[.blue]?.cemetery, 0)
     }
 }

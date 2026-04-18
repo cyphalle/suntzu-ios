@@ -17,29 +17,47 @@ public enum Evaluator {
         for province in Province.allCases {
             guard let pv = state.provinces[province] else { continue }
             let displayValue = Double(state.scoreDisplays[province]?.value(forTurn: nextTurn) ?? 0)
-            // Fallback bias when displays are zeroed stubs: reward control itself.
-            let controlValue = displayValue * 10 + 1
+            // Fallback bias when displays are zeroed stubs — now with real
+            // values this boost is minor relative to `displayValue`.
+            let controlValue = displayValue * 3 + 1
             switch pv.controller {
             case .some(player):
-                score += controlValue + Double(pv.armies) * 0.8
+                score += controlValue + Double(pv.armies) * 0.5
             case .some(player.opponent):
-                score -= controlValue + Double(pv.armies) * 0.8
+                score -= controlValue + Double(pv.armies) * 0.5
             default:
                 break
             }
         }
 
-        // Reserve, setAside, hand strength.
+        // Committed placements — reward committing strong cards on valuable
+        // provinces as a proxy for expected combat wins. Without this term,
+        // the hand-strength bonus below makes the heuristic hoard good cards
+        // and lose combats by placing weaker ones.
+        if case .placement = state.phase {
+            for placement in state.placements {
+                let displayValue = Double(state.scoreDisplays[placement.province]?.value(forTurn: nextTurn) ?? 0)
+                let strength = cardStrength(placement.card.value)
+                if placement.player == player {
+                    score += strength * displayValue * 0.4 + strength * 0.2
+                } else {
+                    score -= strength * displayValue * 0.3 + strength * 0.1
+                }
+            }
+        }
+
+        // Reserve, cemetery (recoverable via .useRenfort, hence a smaller
+        // positive weight than reserve), hand strength.
         if let ps = state.players[player] {
             score += Double(ps.reserve) * 0.6
-            score += Double(ps.setAside) * 1.0
+            score += Double(ps.cemetery) * 0.3
             for card in ps.hand {
-                score += cardStrength(card.value) * 0.15
+                score += cardStrength(card.value) * 0.05
             }
         }
         if let opp = state.players[player.opponent] {
             score -= Double(opp.reserve) * 0.4
-            score -= Double(opp.setAside) * 0.6
+            score -= Double(opp.cemetery) * 0.2
         }
 
         return score

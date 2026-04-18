@@ -20,3 +20,4 @@ the old one `superseded by ADR-00XX`.
 | [ADR-0009](0009-arena-alternates-placement.md) | `Arena` alternates blue/red during placement | accepted |
 | [ADR-0010](0010-mcts-as-2ply-with-rollouts.md) | "MCTS" implemented as 2-ply minimax + blended rollouts | accepted |
 | [ADR-0011](0011-ios-app-architecture.md) | iOS app architecture (SwiftUI + SpriteKit + XcodeGen) | accepted |
+| [ADR-0012](0012-troop-economy-cemetery.md) | Troop economy: 18/3 starting split, cemetery costs at reveal | accepted |

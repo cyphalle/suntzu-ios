@@ -2,6 +2,10 @@ import XCTest
 @testable import SunTzuCore
 
 /// M3 — Combat resolution (plague excluded, handled in M7) — SPEC §5.6, §9.1, §12 M3.
+///
+/// Note: reserves account for the troop-cost rule added after the "gestion des
+/// troupes" revision — +2 costs 1 cube to cemetery, +3 costs 2, numeric(6) costs 1.
+/// Starting reserve in standard mode is 18.
 final class CombatTests: XCTestCase {
 
     // MARK: - effectiveValue (unit)
@@ -29,60 +33,64 @@ final class CombatTests: XCTestCase {
         let s = try runSingleCombat(blue: .numeric(9), red: .numeric(5))
         XCTAssertEqual(s.provinces[.wu]?.controller, .blue)
         XCTAssertEqual(s.provinces[.wu]?.armies, 4)
-        XCTAssertEqual(s.players[.blue]?.reserve, 11)
-        XCTAssertEqual(s.players[.red]?.reserve, 15)
+        XCTAssertEqual(s.players[.blue]?.reserve, 14) // 18 - 4 combat
+        XCTAssertEqual(s.players[.red]?.reserve, 18)
     }
 
     func test_case2_numeric5vs5_tie() throws {
         let s = try runSingleCombat(blue: .numeric(5), red: .numeric(5))
         XCTAssertNil(s.provinces[.wu]?.controller)
         XCTAssertEqual(s.provinces[.wu]?.armies, 0)
-        XCTAssertEqual(s.players[.blue]?.reserve, 15)
-        XCTAssertEqual(s.players[.red]?.reserve, 15)
+        XCTAssertEqual(s.players[.blue]?.reserve, 18)
+        XCTAssertEqual(s.players[.red]?.reserve, 18)
     }
 
     func test_case3_numeric3vs10_redWinsDelta7() throws {
         let s = try runSingleCombat(blue: .numeric(3), red: .numeric(10))
         XCTAssertEqual(s.provinces[.wu]?.controller, .red)
         XCTAssertEqual(s.provinces[.wu]?.armies, 7)
-        XCTAssertEqual(s.players[.red]?.reserve, 8)
-        XCTAssertEqual(s.players[.blue]?.reserve, 15)
+        XCTAssertEqual(s.players[.red]?.reserve, 11) // 18 - 7 combat
+        XCTAssertEqual(s.players[.blue]?.reserve, 18)
     }
 
     func test_case4_bonusPlus1vs5_blueWinsDelta1() throws {
         let s = try runSingleCombat(blue: .bonus(1), red: .numeric(5))
         XCTAssertEqual(s.provinces[.wu]?.controller, .blue)
         XCTAssertEqual(s.provinces[.wu]?.armies, 1)
-        XCTAssertEqual(s.players[.blue]?.reserve, 14)
+        XCTAssertEqual(s.players[.blue]?.reserve, 17) // 18 - 1 combat, no bonus cost for +1
     }
 
     func test_case5_malusVs5_redWinsDelta1() throws {
         let s = try runSingleCombat(blue: .malus, red: .numeric(5))
         XCTAssertEqual(s.provinces[.wu]?.controller, .red)
         XCTAssertEqual(s.provinces[.wu]?.armies, 1)
-        XCTAssertEqual(s.players[.red]?.reserve, 14)
+        XCTAssertEqual(s.players[.red]?.reserve, 17) // 18 - 1 combat
     }
 
     func test_case6_malusVsBonusPlus2_redWinsDelta2() throws {
         let s = try runSingleCombat(blue: .malus, red: .bonus(2))
         XCTAssertEqual(s.provinces[.wu]?.controller, .red)
         XCTAssertEqual(s.provinces[.wu]?.armies, 2)
-        XCTAssertEqual(s.players[.red]?.reserve, 13)
+        // Red plays +2: 2 combat + 1 cemetery cost → reserve 18 - 3 = 15, cemetery 3 + 1 = 4.
+        XCTAssertEqual(s.players[.red]?.reserve, 15)
+        XCTAssertEqual(s.players[.red]?.cemetery, 4)
     }
 
     func test_case7_bonusPlus1VsBonusPlus3_redWinsDelta2() throws {
         let s = try runSingleCombat(blue: .bonus(1), red: .bonus(3))
         XCTAssertEqual(s.provinces[.wu]?.controller, .red)
         XCTAssertEqual(s.provinces[.wu]?.armies, 2)
-        XCTAssertEqual(s.players[.red]?.reserve, 13)
+        // Red plays +3: 2 combat + 2 cemetery cost → reserve 14, cemetery 5.
+        XCTAssertEqual(s.players[.red]?.reserve, 14)
+        XCTAssertEqual(s.players[.red]?.cemetery, 5)
     }
 
     func test_case8_bonusPlus1VsBonusPlus1_tie() throws {
         let s = try runSingleCombat(blue: .bonus(1), red: .bonus(1))
         XCTAssertNil(s.provinces[.wu]?.controller)
         XCTAssertEqual(s.provinces[.wu]?.armies, 0)
-        XCTAssertEqual(s.players[.blue]?.reserve, 15)
-        XCTAssertEqual(s.players[.red]?.reserve, 15)
+        XCTAssertEqual(s.players[.blue]?.reserve, 18)
+        XCTAssertEqual(s.players[.red]?.reserve, 18)
     }
 
     func test_case9_malusVsMalus_tie() throws {

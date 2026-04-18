@@ -9,7 +9,7 @@ transcribed yet. We commit a default in code, grep-able via
 | Q#1 | Exact deck composition | ✅ RESOLVED | `{1..10}` + 3×+1 + 1×+2 + 1×+3 + 3×−1 + 2×P | `GameSetup.standardDeck` | — |
 | Q#2 | Score-track size | ✅ RESOLVED | `scoreTrackMax = 9` | `Scoring.swift` | — |
 | Q#3 | Province adjacency | ⚠️ DEFAULT | Risk-style graph (`qin ↔ jinYan, hanQi, chu` etc.) | `Province.adjacency` | Transcribe from the physical board before the UI milestone consumes it for `moveArmy` / withdrawal |
-| Q#4 | Values of the ten score-display tokens | ⚠️ UNKNOWN | `ScoreDisplay(t3: 0, t6: 0, t9: 0)` stub for every province | `GameSetup.newGame` | Transcribe from the physical components — without real values scoring cannot produce a non-zero `scoreTrack`, which cascades into `Evaluator` biases |
+| Q#4 | Values of the ten score-display tokens | ✅ RESOLVED | Per-province random draw: three values in [1, 5] with sum ∈ [5, 10], seeded — `ScoreDisplay.random(using:)` | `GameSetup.newGame` via `ScoreDisplay.random` | — |
 | Q#5 | Two simultaneous plagues | ⚠️ DEFAULT | The first-in-reveal-order (blue) plague resolves; the other is discarded silently | `Combat.resolve` | Confirm acceptable or supply the real tie-break |
 | Q#6 | Placement order (simultaneous vs sequential) | ⚠️ DEFAULT | Treated as simultaneous: any order is legal; `Arena` alternates for AI fairness | `Rules.placementActions`, `Arena.simulate` | Accept or refine (e.g. strict privilege order) |
 | Q#7 | `charsDeGuerre` pool for the 2nd strategy | ⚠️ DEFAULT | Pick from the four that were NOT chosen initially | Not yet enforced — only the `pendingExtraStrategy` flag is set | Design the pick action + confirm pool |
@@ -21,13 +21,12 @@ transcribed yet. We commit a default in code, grep-able via
   `ArmyPlacement.place` picks slightly different sources, and `moveArmy`
   validates different targets. All rule-compliant; just different board
   geometry.
-- **Q#4 (score displays)** — the dominant unknown. With `(0, 0, 0)` stubs:
-  - `Scoring.computeDelta` always returns `0`
-  - games always end at T9 with tie-break by reserve
-  - `Evaluator` falls back to a +1-per-controlled-province bias to still
-    prefer winning combats
-  - Real values will change AI balance and probably require re-tuning
-    `Evaluator` weights (see [ADR-0008](adr/0008-evaluator-fallback-bias.md))
+- **Q#4 (score displays)** — resolved via per-province rejection-sampled draws
+  (three values in [1, 5], sum in [5, 10]). Seeded RNG shares the same
+  sequence as deck shuffling, so `newGame(seed:)` remains bit-exact.
+  `Evaluator` weights were retuned after resolving this (see
+  [ADR-0008](adr/0008-evaluator-fallback-bias.md) and
+  [ADR-0012](adr/0012-troop-economy-cemetery.md)).
 - **Q#5 (two plagues)** — never observed in 100-seed fuzz; the default is a
   safe early-commit.
 - **Q#6 (placement order)** — simultaneous treatment is strictly more

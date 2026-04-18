@@ -3,7 +3,7 @@ public enum GameSetup {
     /// Build a fresh game state. Deterministic given `seed`.
     /// - Parameters:
     ///   - seed: xorshift64 RNG seed — SPEC §6.3.
-    ///   - beginner: true → 21 armies, 18-card deck, no setAside — SPEC §5.1.
+    ///   - beginner: true → 21 armies in reserve, 18-card deck, no cemetery — SPEC §5.1.
     ///   - events: true → shuffle the 5-event deck — SPEC §5.10.
     public static func newGame(
         seed: UInt64,
@@ -18,9 +18,12 @@ public enum GameSetup {
         let emptyProvinces: [Province: ProvinceState] = Dictionary(
             uniqueKeysWithValues: Province.allCases.map { ($0, ProvinceState()) }
         )
-        // DEFAULT: see SPEC §13 Q#4 — score-display values not yet transcribed from physical components.
-        let stubDisplays: [Province: ScoreDisplay] = Dictionary(
-            uniqueKeysWithValues: Province.allCases.map { ($0, ScoreDisplay(t3: 0, t6: 0, t9: 0)) }
+        // Randomised per-province score displays: three values in [1, 5]
+        // with a sum in [5, 10]. Resolves SPEC §13 Q#4.
+        let displays: [Province: ScoreDisplay] = Dictionary(
+            uniqueKeysWithValues: Province.allCases.map { province in
+                (province, ScoreDisplay.random(using: &rng))
+            }
         )
 
         var eventDeck: [EventCard] = events ? EventCard.allCases.shuffled(using: &rng) : []
@@ -32,7 +35,7 @@ public enum GameSetup {
             provinces: emptyProvinces,
             players: [.blue: bluePlayer, .red: redPlayer],
             scoreTrack: 0,
-            scoreDisplays: stubDisplays,
+            scoreDisplays: displays,
             eventDeck: eventDeck,
             activeEvent: firstEvent
         )
@@ -90,16 +93,16 @@ public enum GameSetup {
         let deck = Array(shufflable.dropFirst(4))
         let hand = permanents + drawn
 
-        // Standard: 18 armies = 15 reserve + 3 setAside.
-        // Beginner: 21 armies = 21 reserve + 0 setAside.
-        let reserve = beginner ? 21 : 15
-        let setAside = beginner ? 0 : 3
+        // Standard: 21 armies = 18 reserve + 3 cemetery.
+        // Beginner: 21 armies = 21 reserve + 0 cemetery.
+        let reserve = beginner ? 21 : 18
+        let cemetery = beginner ? 0 : 3
 
         return PlayerState(
             hand: hand,
             deck: deck,
             reserve: reserve,
-            setAside: setAside
+            cemetery: cemetery
         )
     }
 }

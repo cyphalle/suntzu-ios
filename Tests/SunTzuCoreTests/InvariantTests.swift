@@ -5,12 +5,12 @@ import XCTest
 final class InvariantTests: XCTestCase {
 
     /// Runs 100 random games (seeds 1..100) and checks invariants after every action.
-    /// Uses standard mode without events so no armies are destroyed → totals equal 18.
+    /// Uses standard mode without events so no armies are destroyed → totals equal 21.
     func test_invariants_holdAcross100RandomGames() throws {
         for seed in 1...100 {
             var rng = SeededRNG(seed: UInt64(seed) &+ 0xABCDEF01)
             var state = GameSetup.newGame(seed: UInt64(seed))
-            verifyInvariants(state, initial: 18, context: "seed=\(seed) step=0")
+            verifyInvariants(state, initial: 21, context: "seed=\(seed) step=0")
 
             let maxSteps = 2000
             var step = 0
@@ -29,7 +29,7 @@ final class InvariantTests: XCTestCase {
                     break
                 }
                 step += 1
-                verifyInvariants(state, initial: 18, context: "seed=\(seed) step=\(step)")
+                verifyInvariants(state, initial: 21, context: "seed=\(seed) step=\(step)")
             }
 
             XCTAssertTrue(
@@ -64,13 +64,13 @@ final class InvariantTests: XCTestCase {
             let plateau = state.provinces.values.reduce(0) { acc, pv in
                 acc + (pv.controller == player ? pv.armies : 0)
             }
-            let total = ps.reserve + ps.setAside + plateau
+            let total = ps.reserve + ps.cemetery + plateau
             XCTAssertEqual(
                 total, initial,
-                "\(context): \(player) total armies \(total), expected \(initial) (reserve=\(ps.reserve), setAside=\(ps.setAside), plateau=\(plateau))"
+                "\(context): \(player) total armies \(total), expected \(initial) (reserve=\(ps.reserve), cemetery=\(ps.cemetery), plateau=\(plateau))"
             )
             XCTAssertGreaterThanOrEqual(ps.reserve, 0, "\(context): \(player) reserve negative")
-            XCTAssertGreaterThanOrEqual(ps.setAside, 0)
+            XCTAssertGreaterThanOrEqual(ps.cemetery, 0)
             XCTAssertLessThanOrEqual(ps.deck.count + ps.hand.count, 20, "\(context): \(player) deck+hand > 20")
         }
 

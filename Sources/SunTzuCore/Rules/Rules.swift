@@ -32,6 +32,8 @@ public enum Rules {
             return try applyPass(player: player, state: state)
         case let .useStrategy(player, strategy, target):
             return try applyUseStrategy(player: player, strategy: strategy, target: target, state: state)
+        case let .useRenfort(player, discarded):
+            return try applyUseRenfort(player: player, discarded: discarded, state: state)
         default:
             throw RulesError.notImplemented("Rules.apply: \(action)")
         }
@@ -109,6 +111,19 @@ public enum Rules {
                 }
             default:
                 break
+            }
+        }
+
+        // Troop cost at reveal — "gestion des troupes":
+        // +2 → 1 cube to cemetery, +3 → 2 cubes, numeric(6) → 1 cube.
+        for placement in [blue, red] {
+            let cost = troopCost(for: placement.card.value)
+            if cost > 0 {
+                newState = moveTroopsToCemetery(
+                    count: cost,
+                    player: placement.player,
+                    state: newState
+                )
             }
         }
 
@@ -273,6 +288,86 @@ public enum Rules {
         if newState.pendingDraws.isEmpty {
             newState = advanceToNextTurn(newState)
         }
+        return newState
+    }
+
+    // MARK: - Troop cost (cemetery bookkeeping)
+
+    /// Number of cubes the card sends to its owner's cemetery when revealed.
+    private static func troopCost(for value: CardValue) -> Int {
+        switch value {
+        case .numeric(6): return 1
+        case .bonus(let k) where k >= 2: return k - 1 // +2 → 1, +3 → 2
+        default: return 0
+        }
+    }
+
+    /// Move `count` cubes from `player`'s reserve (or any controlled province
+    /// if the reserve runs out) into their cemetery pool. Silently stops if
+    /// the player has no cubes anywhere.
+    private static func moveTroopsToCemetery(
+        count: Int,
+        player: Player,
+        state: GameState
+    ) -> GameState {
+        var s = state
+        var remaining = count
+        guard var ps = s.players[player] else { return s }
+        let fromReserve = min(remaining, ps.reserve)
+        ps.reserve -= fromReserve
+        ps.cemetery += fromReserve
+        remaining -= fromReserve
+        s.players[player] = ps
+        if remaining > 0 {
+            for province in Province.allCases {
+                if remaining == 0 { break }
+                guard var pv = s.provinces[province],
+                      pv.controller == player,
+                      pv.armies > 0 else { continue }
+                let take = min(remaining, pv.armies)
+                pv.armies -= take
+                if pv.armies == 0 { pv.controller = nil }
+                s.provinces[province] = pv
+                if var ps = s.players[player] {
+                    ps.cemetery += take
+                    s.players[player] = ps
+                }
+                remaining -= take
+            }
+        }
+        return s
+    }
+
+    // MARK: - Renfort exceptionnel
+
+    /// Discard a non-permanent card to pull a cube from cemetery → reserve.
+    /// SPEC §5.11 + "gestion des troupes".
+    private static func applyUseRenfort(
+        player: Player,
+        discarded: Card,
+        state: GameState
+    ) throws -> GameState {
+        guard let ps = state.players[player] else {
+            throw RulesError.malformedState("missing player \(player)")
+        }
+        guard ps.cemetery > 0 else {
+            throw RulesError.illegalAction("\(player) has no cubes in cemetery")
+        }
+        guard discarded.owner == player else {
+            throw RulesError.illegalAction("cannot discard opponent's card")
+        }
+        guard !discarded.value.isKeepable else {
+            throw RulesError.illegalAction("permanents (numeric 1..6) cannot be discarded for renfort")
+        }
+        guard let idx = ps.hand.firstIndex(where: { $0.id == discarded.id }) else {
+            throw RulesError.illegalAction("card not in \(player) hand")
+        }
+        var newState = state
+        var updated = ps
+        updated.hand.remove(at: idx)
+        updated.cemetery -= 1
+        updated.reserve += 1
+        newState.players[player] = updated
         return newState
     }
 
