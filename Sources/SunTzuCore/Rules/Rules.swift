@@ -61,6 +61,13 @@ public enum Rules {
             let hand = state.players[player]?.hand ?? []
             for province in Province.allCases where !usedProvinces.contains(province) {
                 for card in hand {
+                    // Filter 6-in-already-marked-province: needs unused double6.
+                    if case .numeric(6) = card.value,
+                       state.provinces[province]?.sixMarkers.contains(player) == true {
+                        let hasDouble6 = state.players[player]?.strategyCards.contains(.double6) == true
+                        let usedDouble6 = state.players[player]?.usedStrategies.contains(.double6) == true
+                        if !hasDouble6 || usedDouble6 { continue }
+                    }
                     actions.append(.placeCard(player: player, province: province, card: card))
                 }
             }
@@ -178,7 +185,7 @@ public enum Rules {
 
     private static func drawActions(in state: GameState) -> [GameAction] {
         var actions: [GameAction] = []
-        for player in state.pendingDraws {
+        for player in [Player.blue, .red] where state.pendingDraws.contains(player) {
             guard let ps = state.players[player] else { continue }
             switch ps.deck.count {
             case 0:
