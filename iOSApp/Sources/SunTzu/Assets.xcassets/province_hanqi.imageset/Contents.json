@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "idiom" : "universal", "scale" : "1x", "filename" : "province_hanqi.png" },
+    { "idiom" : "universal", "scale" : "2x", "filename" : "province_hanqi@2x.png" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

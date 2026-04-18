@@ -29,20 +29,33 @@ struct CardView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            VStack(spacing: 2) {
-                Text(label)
-                    .font(.system(size: 26, weight: .bold, design: .serif))
-                    .foregroundStyle(textColor)
-                Text(caption)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.7))
+            ZStack {
+                Image("panel_brown")
+                    .resizable(
+                        capInsets: EdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14),
+                        resizingMode: .stretch
+                    )
+                    .frame(width: 56, height: 86)
+                    .overlay(
+                        Rectangle()
+                            .fill(background)
+                            .blendMode(.overlay)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                VStack(spacing: 2) {
+                    Text(label)
+                        .font(.system(size: 26, weight: .bold, design: .serif))
+                        .foregroundStyle(textColor)
+                        .shadow(color: .black.opacity(0.6), radius: 1)
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
             }
             .frame(width: 56, height: 86)
-            .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.yellow : Color.white.opacity(0.2), lineWidth: isSelected ? 3 : 1)
+                    .stroke(isSelected ? Color.yellow : Color.clear, lineWidth: isSelected ? 3 : 0)
             )
 
             if let cost = costLabel {

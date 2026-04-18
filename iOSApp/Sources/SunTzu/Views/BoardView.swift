@@ -1,10 +1,9 @@
 import SwiftUI
 import SunTzuCore
 
-/// SwiftUI board — a ZStack of province discs with adjacency lines drawn in
-/// a Canvas behind them. Drag cards from the hand onto a province to draft,
-/// tap a drafted province to unselect/return the card to hand, or use the
-/// classic tap-card then tap-province flow.
+/// SwiftUI board — tiled Kenney parchment texture with five province
+/// structures overlaid, connected by adjacency lines. Supports drag-drop
+/// from the hand and the classic tap-card → tap-province flow.
 struct BoardView: View {
     let state: GameState
     let humanDrafts: [Province: Card]
@@ -23,12 +22,19 @@ struct BoardView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let radius = min(geo.size.width, geo.size.height) * 0.16
+            let radius = min(geo.size.width, geo.size.height) * 0.17
             ZStack {
+                // Tiled parchment texture (Kenney medieval RTS tile_01).
+                Image("board_texture")
+                    .resizable(resizingMode: .tile)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .saturation(0.9)
+                    .overlay(Color.black.opacity(0.15))
+
                 Canvas { ctx, size in
                     ctx.stroke(adjacencyPath(in: size),
-                               with: .color(.white.opacity(0.12)),
-                               lineWidth: 1)
+                               with: .color(.black.opacity(0.25)),
+                               style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
                 }
 
                 ForEach(Province.allCases, id: \.self) { province in
@@ -58,6 +64,8 @@ struct BoardView: View {
                     }
                 }
             }
+            .clipped()
+            .cornerRadius(12)
         }
     }
 
@@ -82,9 +90,8 @@ struct BoardView: View {
 // MARK: - ProvinceDiscView
 
 /// One province on the SwiftUI board.
-/// Shows name, score-display row (T3 · T6 · T9 with next-scoring highlighted),
-/// committed armies and controller colour, six-marker badges, and a face-up
-/// drafted card when the human has queued one there.
+/// Kenney medieval RTS structure on top, armies under, six-marker badges,
+/// score displays floating above, committed face-down chits below.
 struct ProvinceDiscView: View {
     let province: Province
     let pvState: ProvinceState
@@ -97,26 +104,49 @@ struct ProvinceDiscView: View {
 
     var body: some View {
         ZStack {
-            // Disc
+            // Disc backplate — coloured by controller.
             Circle()
                 .fill(discFill)
-                .overlay(Circle().stroke(discStroke, lineWidth: 2))
+                .overlay(Circle().stroke(discStroke, lineWidth: 3))
+                .shadow(color: .black.opacity(0.25), radius: 3, y: 2)
                 .frame(width: radius * 2, height: radius * 2)
 
-            VStack(spacing: 2) {
+            // Score-display row anchored above the disc.
+            scoreDisplayRow
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.black.opacity(0.55)))
+                .offset(y: -radius - 6)
+
+            VStack(spacing: -2) {
                 Text(Self.displayName(province))
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .heavy, design: .serif))
                     .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.6), radius: 1)
 
-                scoreDisplayRow
+                Image(Self.structureImage(for: province))
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: radius * 1.1, height: radius * 1.1)
 
-                Text(pvState.armies > 0 ? "\(pvState.armies)" : "")
-                    .font(.system(size: 22, weight: .bold, design: .serif))
-                    .foregroundStyle(.white)
+                if pvState.armies > 0 {
+                    HStack(spacing: 2) {
+                        Image(pvState.controller == .blue ? "unit_blue" : "unit_red")
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: radius * 0.35, height: radius * 0.35)
+                        Text("\(pvState.armies)")
+                            .font(.system(size: radius * 0.32, weight: .bold, design: .serif))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black, radius: 1)
+                    }
+                }
             }
-            .frame(width: radius * 1.7, height: radius * 1.7)
+            .frame(width: radius * 1.8, height: radius * 1.8)
 
-            // Six-marker badges bottom corners.
+            // Six-marker stars at the bottom corners.
             HStack {
                 if pvState.sixMarkers.contains(.blue) {
                     sixBadge(color: .blue)
@@ -126,25 +156,33 @@ struct ProvinceDiscView: View {
                     sixBadge(color: .red)
                 }
             }
-            .frame(width: radius * 1.6, height: radius * 1.6)
-            .padding(.bottom, radius * 0.1)
+            .frame(width: radius * 1.5)
+            .offset(y: radius * 0.65)
 
-            // Drafted card — face-up for the human (shown above the disc).
+            // Drafted card — face-up for the human.
             if let draftCard {
                 draftBadge(for: draftCard)
-                    .offset(y: -radius * 1.1)
+                    .offset(y: -radius * 1.25)
             }
 
-            // Committed face-down placement dots beneath the disc.
+            // Committed face-down units beneath the disc.
             HStack(spacing: 6) {
                 if bluePlacedCommitted {
-                    Circle().fill(Color.blue).frame(width: 10, height: 10)
+                    Image("unit_blue")
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
                 }
                 if redPlacedCommitted {
-                    Circle().fill(Color.red).frame(width: 10, height: 10)
+                    Image("unit_red")
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
                 }
             }
-            .offset(y: radius + 12)
+            .offset(y: radius + 16)
         }
         .frame(width: radius * 2, height: radius * 2)
     }
@@ -164,7 +202,7 @@ struct ProvinceDiscView: View {
         return Text(value.map { "\($0)" } ?? "—")
             .font(.system(size: isNext ? 13 : 11,
                           weight: isNext ? .bold : .medium))
-            .foregroundStyle(isNext ? Color.yellow : Color.white.opacity(0.55))
+            .foregroundStyle(isNext ? Color.yellow : Color.white.opacity(0.65))
     }
 
     private var separator: some View {
@@ -172,36 +210,40 @@ struct ProvinceDiscView: View {
     }
 
     private func sixBadge(color: Color) -> some View {
-        Text("6")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(color)
+        Image("marker_six")
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 18, height: 18)
+            .overlay(
+                Circle()
+                    .stroke(color, lineWidth: 2)
+                    .padding(-1)
+            )
     }
 
     private func draftBadge(for card: Card) -> some View {
-        VStack(spacing: 0) {
-            Text(cardLabel(card.value))
-                .font(.system(size: 18, weight: .bold, design: .serif))
-                .foregroundStyle(cardColor(card.value))
-        }
-        .frame(width: 34, height: 42)
-        .background(Color.black.opacity(0.85))
-        .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(Color.yellow, lineWidth: 2))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        Text(cardLabel(card.value))
+            .font(.system(size: 18, weight: .bold, design: .serif))
+            .foregroundStyle(cardColor(card.value))
+            .frame(width: 34, height: 42)
+            .background(Color.black.opacity(0.85))
+            .overlay(RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.yellow, lineWidth: 2))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var discFill: Color {
         switch pvState.controller {
-        case .blue: return Color.blue.opacity(0.35)
-        case .red:  return Color.red.opacity(0.35)
-        case nil:   return Color.white.opacity(0.08)
+        case .blue: return Color.blue.opacity(0.40)
+        case .red:  return Color.red.opacity(0.40)
+        case nil:   return Color.black.opacity(0.25)
         }
     }
     private var discStroke: Color {
         switch pvState.controller {
         case .blue: return .blue
         case .red:  return .red
-        case nil:   return .white.opacity(0.3)
+        case nil:   return .white.opacity(0.4)
         }
     }
 
@@ -235,6 +277,16 @@ struct ProvinceDiscView: View {
         case .jinYan: return "JIN-YAN"
         case .hanQi:  return "HAN-QI"
         case .wu:     return "WU"
+        }
+    }
+
+    private static func structureImage(for p: Province) -> String {
+        switch p {
+        case .qin:    return "province_qin"
+        case .chu:    return "province_chu"
+        case .jinYan: return "province_jinyan"
+        case .hanQi:  return "province_hanqi"
+        case .wu:     return "province_wu"
         }
     }
 }

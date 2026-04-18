@@ -58,16 +58,35 @@ struct PhaseControlsView: View {
                     await store.validateDrafts()
                 }
             } label: {
-                Label("Valider les 5 placements", systemImage: "checkmark.seal.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(ready ? Color.blue.opacity(0.9) : Color.gray.opacity(0.3))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                woodenButtonLabel(
+                    title: "Valider les 5 placements",
+                    systemIcon: "checkmark.seal.fill",
+                    imageName: "button_brown",
+                    enabled: ready
+                )
             }
             .disabled(!ready)
         }
+    }
+
+    private func woodenButtonLabel(title: String, systemIcon: String, imageName: String, enabled: Bool) -> some View {
+        ZStack {
+            Image(imageName)
+                .resizable(
+                    capInsets: EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14),
+                    resizingMode: .stretch
+                )
+                .frame(height: 48)
+                .opacity(enabled ? 1 : 0.45)
+            HStack(spacing: 8) {
+                Image(systemName: systemIcon)
+                Text(title)
+            }
+            .font(.system(size: 15, weight: .bold, design: .serif))
+            .foregroundStyle(enabled ? .white : .white.opacity(0.6))
+            .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func hint(drafts: Int) -> String {
@@ -86,13 +105,12 @@ struct PhaseControlsView: View {
         Button {
             Task { await store.submitHumanAction(.revealNext) }
         } label: {
-            Label("Révéler le combat suivant", systemImage: "play.fill")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.blue.opacity(0.9))
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            woodenButtonLabel(
+                title: "Révéler le combat suivant",
+                systemIcon: "play.fill",
+                imageName: "button_red",
+                enabled: true
+            )
         }
     }
 

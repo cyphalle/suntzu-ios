@@ -9,9 +9,18 @@ struct MainMenuView: View {
             Color.black.ignoresSafeArea()
             VStack(spacing: 28) {
                 Spacer()
-                Text("Sun Tzu")
-                    .font(.system(size: 56, weight: .thin, design: .serif))
-                    .foregroundStyle(.white)
+                ZStack {
+                    Image("banner_title")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                    Text("Sun Tzu")
+                        .font(.system(size: 38, weight: .bold, design: .serif))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.8), radius: 2)
+                }
+                .frame(height: 90)
+                .padding(.horizontal, 24)
+
                 Text("L'art de la guerre")
                     .font(.system(size: 18, weight: .light, design: .serif))
                     .foregroundStyle(.white.opacity(0.6))
@@ -42,13 +51,18 @@ struct MainMenuView: View {
 
     private func menuButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 18, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.white.opacity(0.1))
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            ZStack {
+                Image("button_brown")
+                    .resizable(
+                        capInsets: EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14),
+                        resizingMode: .stretch
+                    )
+                    .frame(height: 54)
+                Text(title)
+                    .font(.system(size: 18, weight: .bold, design: .serif))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.7), radius: 1, y: 1)
+            }
         }
     }
 

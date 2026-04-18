@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "idiom" : "universal", "scale" : "1x", "filename" : "banner_title.png" },
+    { "idiom" : "universal", "scale" : "2x", "filename" : "banner_title@2x.png" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
