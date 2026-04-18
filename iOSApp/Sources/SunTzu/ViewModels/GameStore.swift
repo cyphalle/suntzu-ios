@@ -123,8 +123,12 @@ final class GameStore {
         do {
             state = try Rules.apply(action, to: state)
         } catch {
-            // Illegal input from the UI is a programming error; surface it.
-            assertionFailure("illegal action \(action) in phase \(state.phase): \(error)")
+            // Illegal actions can surface from UI races (double-tap, stale
+            // selection, reveal button pressed twice). The engine is the
+            // source of truth; we swallow and log instead of crashing.
+            #if DEBUG
+            print("[GameStore] ignored illegal action: \(action) phase=\(state.phase) error=\(error)")
+            #endif
         }
     }
 

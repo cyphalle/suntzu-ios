@@ -40,7 +40,7 @@ final class BoardScene: SKScene {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
-        for (province, node) in nodes where node.contains(location) {
+        for (province, node) in nodes where node.containsScenePoint(location) {
             onProvinceTap?(province)
             return
         }

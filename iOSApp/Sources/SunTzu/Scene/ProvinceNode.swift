@@ -72,7 +72,8 @@ final class ProvinceNode: SKNode {
 
     // MARK: - hit testing
 
-    func contains(_ point: CGPoint) -> Bool {
+    /// True if `point` (scene coordinates) falls inside the disc.
+    func containsScenePoint(_ point: CGPoint) -> Bool {
         let dx = point.x - position.x
         let dy = point.y - position.y
         return dx * dx + dy * dy <= radius * radius

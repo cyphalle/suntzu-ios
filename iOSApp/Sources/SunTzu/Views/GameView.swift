@@ -70,17 +70,24 @@ struct GameView: View {
     private func handleProvinceTap(_ province: Province) {
         guard case .placement = store.state.phase else { return }
         guard let card = selectedCard else { return }
-
+        // Card must still be in the hand — guards against a rapid re-tap
+        // after the first Task has removed the card.
+        guard store.state.players[GameStore.humanPlayer]?.hand.contains(where: { $0.id == card.id }) == true else {
+            selectedCard = nil
+            return
+        }
         let alreadyPlaced = store.state.placements.contains {
             $0.player == GameStore.humanPlayer && $0.province == province
         }
         guard !alreadyPlaced else { return }
 
+        // Clear the selection up front so a fast second tap finds nothing to
+        // re-submit, then fire the async submission.
+        selectedCard = nil
         Task {
             await store.submitHumanAction(
                 .placeCard(player: GameStore.humanPlayer, province: province, card: card)
             )
-            selectedCard = nil
         }
     }
 }
