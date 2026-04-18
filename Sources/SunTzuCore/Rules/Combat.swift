@@ -1,15 +1,17 @@
-/// Outcome of resolving a single combat (no plague) — SPEC §5.6.3.
+/// Outcome of resolving a single combat — SPEC §5.6.
 public enum CombatOutcome: Hashable, Sendable {
     case tie
     case result(winner: Player, delta: Int)
-    // TODO: plague outcomes added in M7 (SPEC §5.6.2).
+    /// Plague hits the province: armies are destroyed (floor/2, or all-but-1 with `pesteTotal`).
+    /// SPEC §5.6.2.
+    case plague(plaguePlayer: Player, pesteTotal: Bool)
 }
 
 /// Combat resolution — SPEC §5.6.
 /// Pure functions; no state mutation.
 public enum Combat {
     /// Effective value of `own` card against `opp` — SPEC §5.6.1.
-    /// Plague paths return 0 as a placeholder — actual plague logic is M7.
+    /// Plague paths return 0 as a placeholder; see `resolve` for plague handling.
     public static func effectiveValue(own: CardValue, opp: CardValue) -> Int {
         switch own {
         case .numeric(let n):
@@ -19,35 +21,87 @@ public enum Combat {
             case .numeric(let m): return m + k
             case .bonus: return k
             case .malus: return k
-            case .plague: return 0 // M7
+            case .plague: return 0
             }
         case .malus:
             switch opp {
             case .numeric(let m): return m - 1
             case .bonus: return 0
             case .malus: return -1
-            case .plague: return 0 // M7
+            case .plague: return 0
             }
         case .plague:
-            return 0 // M7
+            return 0
         }
     }
 
-    /// Resolve a combat between two cards, ignoring plague — SPEC §5.6.3.
-    /// Returns the winner and delta, or .tie.
-    public static func resolve(blue: Card, red: Card) -> CombatOutcome {
-        // TODO: plague handling (SPEC §5.6.2) in M7. Until then, plague inputs
-        // degenerate to 0-effective combat which is NOT spec-compliant.
+    /// Resolve a combat, considering active strategy cards on both sides.
+    ///
+    /// Plague handling (SPEC §5.6.2):
+    /// - Both plagues: DEFAULT §13 Q#5 — the blue (first-in-order) plague resolves,
+    ///   the red one is discarded without effect.
+    /// - One plague + opponent holds `pesteCounter`: plague is treated as numeric(0).
+    ///   Combat is resolved normally between 0 and the opponent's card.
+    /// - One plague, no counter: `.plague` outcome; `pesteTotal` toggled if plague
+    ///   player holds it.
+    ///
+    /// Normal resolution applies `count7to10As6` to either side's numeric 7..10.
+    public static func resolve(blue: Card, red: Card, state: GameState) -> CombatOutcome {
+        let blueIsPlague = blue.value == .plague
+        let redIsPlague = red.value == .plague
+
+        let bluePlayer = state.players[.blue]
+        let redPlayer = state.players[.red]
+        let blueHoldsCounter = bluePlayer?.strategyCards.contains(.pesteCounter) ?? false
+        let redHoldsCounter = redPlayer?.strategyCards.contains(.pesteCounter) ?? false
+        let blueHoldsTotal = bluePlayer?.strategyCards.contains(.pesteTotal) ?? false
+        let redHoldsTotal = redPlayer?.strategyCards.contains(.pesteTotal) ?? false
+        let blueCountAs6 = bluePlayer?.strategyCards.contains(.count7to10As6) ?? false
+        let redCountAs6 = redPlayer?.strategyCards.contains(.count7to10As6) ?? false
+
+        if blueIsPlague && redIsPlague {
+            // DEFAULT: see SPEC §13 Q#5 — blue (first in reveal order) resolves.
+            return .plague(plaguePlayer: .blue, pesteTotal: blueHoldsTotal)
+        }
+
+        if blueIsPlague {
+            if redHoldsCounter {
+                let redVal = effectiveWithCountAs6(own: red.value, opp: .plague, count7to10As6: redCountAs6)
+                return compare(blueVal: 0, redVal: redVal)
+            }
+            return .plague(plaguePlayer: .blue, pesteTotal: blueHoldsTotal)
+        }
+
+        if redIsPlague {
+            if blueHoldsCounter {
+                let blueVal = effectiveWithCountAs6(own: blue.value, opp: .plague, count7to10As6: blueCountAs6)
+                return compare(blueVal: blueVal, redVal: 0)
+            }
+            return .plague(plaguePlayer: .red, pesteTotal: redHoldsTotal)
+        }
+
+        // No plague — normal path.
         if blue.value == red.value {
             return .tie
         }
-        let valB = effectiveValue(own: blue.value, opp: red.value)
-        let valR = effectiveValue(own: red.value, opp: blue.value)
-        if valB == valR {
-            return .tie
+        let blueVal = effectiveWithCountAs6(own: blue.value, opp: red.value, count7to10As6: blueCountAs6)
+        let redVal = effectiveWithCountAs6(own: red.value, opp: blue.value, count7to10As6: redCountAs6)
+        return compare(blueVal: blueVal, redVal: redVal)
+    }
+
+    // MARK: - private
+
+    private static func effectiveWithCountAs6(own: CardValue, opp: CardValue, count7to10As6: Bool) -> Int {
+        var adjusted = own
+        if count7to10As6, case .numeric(let n) = own, (7...10).contains(n) {
+            adjusted = .numeric(6)
         }
-        let winner: Player = valB > valR ? .blue : .red
-        let delta = abs(valB - valR)
-        return .result(winner: winner, delta: delta)
+        return effectiveValue(own: adjusted, opp: opp)
+    }
+
+    private static func compare(blueVal: Int, redVal: Int) -> CombatOutcome {
+        if blueVal == redVal { return .tie }
+        let winner: Player = blueVal > redVal ? .blue : .red
+        return .result(winner: winner, delta: abs(blueVal - redVal))
     }
 }

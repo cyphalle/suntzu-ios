@@ -30,6 +30,8 @@ public enum Rules {
             return try applyPickDrawCard(player: player, keep: keep, bottom: bottom, state: state)
         case let .pass(player):
             return try applyPass(player: player, state: state)
+        case let .useStrategy(player, strategy, target):
+            return try applyUseStrategy(player: player, strategy: strategy, target: target, state: state)
         default:
             throw RulesError.notImplemented("Rules.apply: \(action)")
         }
@@ -83,7 +85,27 @@ public enum Rules {
         }
 
         var newState = state
-        switch Combat.resolve(blue: blue.card, red: red.card) {
+
+        // Track played-card counters before combat logic — SPEC §5.6.6.
+        for placement in [blue, red] {
+            switch placement.card.value {
+            case .plague:
+                newState.pestesPlayedTotal += 1
+            case .numeric(6):
+                if var ps = newState.players[placement.player] {
+                    ps.sixesPlayed += 1
+                    newState.players[placement.player] = ps
+                }
+                if var pv = newState.provinces[province] {
+                    pv.sixMarkers.insert(placement.player)
+                    newState.provinces[province] = pv
+                }
+            default:
+                break
+            }
+        }
+
+        switch Combat.resolve(blue: blue.card, red: red.card, state: newState) {
         case .tie:
             break
         case let .result(winner, delta):
@@ -93,6 +115,13 @@ public enum Rules {
                 winner: winner,
                 delta: delta
             )
+        case let .plague(plaguePlayer, pesteTotal):
+            newState = applyPlague(
+                province: province,
+                pesteTotal: pesteTotal,
+                state: newState
+            )
+            _ = plaguePlayer // currently unused outside the outcome; reserved for M8.
         }
 
         let newIndex = nextIndex + 1
@@ -227,6 +256,136 @@ public enum Rules {
         return newState
     }
 
+    // MARK: - Plague
+
+    private static func applyPlague(
+        province: Province,
+        pesteTotal: Bool,
+        state: GameState
+    ) -> GameState {
+        var s = state
+        guard var pv = s.provinces[province], let controller = pv.controller else {
+            return s
+        }
+        let armies = pv.armies
+        let destroyed = pesteTotal ? max(armies - 1, 0) : armies / 2
+        pv.armies -= destroyed
+        if pv.armies == 0 { pv.controller = nil }
+        s.provinces[province] = pv
+        if var ps = s.players[controller] {
+            ps.reserve += destroyed
+            s.players[controller] = ps
+        }
+        return s
+    }
+
+    // MARK: - Strategies
+
+    private static func applyUseStrategy(
+        player: Player,
+        strategy: StrategyCard,
+        target: StrategyTarget?,
+        state: GameState
+    ) throws -> GameState {
+        if case .gameOver = state.phase {
+            throw RulesError.illegalAction("useStrategy after gameOver")
+        }
+        guard let ps = state.players[player] else {
+            throw RulesError.malformedState("missing player \(player)")
+        }
+        guard ps.strategyCards.contains(strategy) else {
+            throw RulesError.illegalAction("\(player) does not hold \(strategy)")
+        }
+        guard !ps.usedStrategies.contains(strategy) else {
+            throw RulesError.illegalAction("\(strategy) already used by \(player)")
+        }
+
+        var newState = state
+
+        switch strategy {
+        case .startBonus:
+            newState.scoreTrack += 1
+
+        case .removeArmy:
+            guard case let .province(province) = target else {
+                throw RulesError.illegalAction("removeArmy requires a province target")
+            }
+            guard var pv = newState.provinces[province],
+                  let owner = pv.controller,
+                  pv.armies > 0 else {
+                throw RulesError.illegalAction("\(province) has no armies to remove")
+            }
+            pv.armies -= 1
+            if pv.armies == 0 { pv.controller = nil }
+            newState.provinces[province] = pv
+            if var op = newState.players[owner] {
+                op.reserve += 1
+                newState.players[owner] = op
+            }
+
+        case .reinforce:
+            guard case let .province(province) = target else {
+                throw RulesError.illegalAction("reinforce requires a province target")
+            }
+            guard var pp = newState.players[player], pp.reserve > 0 else {
+                throw RulesError.illegalAction("\(player) has no reserve to reinforce")
+            }
+            guard var pv = newState.provinces[province], pv.controller == player else {
+                throw RulesError.illegalAction("\(province) is not controlled by \(player)")
+            }
+            pp.reserve -= 1
+            pv.armies += 1
+            newState.players[player] = pp
+            newState.provinces[province] = pv
+
+        case .moveArmy:
+            guard case let .move(from, to) = target else {
+                throw RulesError.illegalAction("moveArmy requires a .move target")
+            }
+            guard Province.adjacency[from]?.contains(to) == true else {
+                throw RulesError.illegalAction("\(to) is not adjacent to \(from)")
+            }
+            guard var src = newState.provinces[from],
+                  src.controller == player,
+                  src.armies > 0 else {
+                throw RulesError.illegalAction("\(from) cannot source an army for \(player)")
+            }
+            guard var dst = newState.provinces[to] else {
+                throw RulesError.malformedState("missing province \(to)")
+            }
+            guard dst.controller == nil || dst.controller == player else {
+                throw RulesError.illegalAction("\(to) is controlled by the opponent")
+            }
+            src.armies -= 1
+            if src.armies == 0 { src.controller = nil }
+            dst.armies += 1
+            dst.controller = player
+            newState.provinces[from] = src
+            newState.provinces[to] = dst
+
+        case .double6,
+             .pesteBottomDiscard,
+             .malusBottomDiscard:
+            // Mark used; effect hooks into placement / draw phases (double6 auto-
+            // triggers in placeCard; discard-to-bottom wiring lands in later work).
+            break
+
+        case .pesteTotal, .pesteCounter, .count7to10As6:
+            // Passive — normally no explicit action is required. Accepting the
+            // call marks the strategy "used" but the passive effect stays via
+            // strategyCards presence. SPEC §5.9.
+            break
+        }
+
+        if var pp = newState.players[player] {
+            pp.usedStrategies.insert(strategy)
+            newState.players[player] = pp
+        }
+        return newState
+    }
+
+    // MARK: - Turn advance
+
     private static func advanceToNextTurn(_ state: GameState) -> GameState {
         var s = state
         // Turn 9 always terminates in scoring; we should never reach the draw
@@ -267,8 +426,27 @@ public enum Rules {
             throw RulesError.illegalAction("card \(card.id) not in \(player) hand")
         }
 
+        // SPEC §5.9 double6: a player cannot place a second 6 in a province where
+        // they already placed one this game, unless they hold an unused double6
+        // strategy, which is auto-consumed by the attempt.
+        var doubleSixConsumed = false
+        if case .numeric(6) = card.value,
+           state.provinces[province]?.sixMarkers.contains(player) == true {
+            let hasStrat = playerState.strategyCards.contains(.double6)
+            let used = playerState.usedStrategies.contains(.double6)
+            guard hasStrat, !used else {
+                throw RulesError.illegalAction(
+                    "\(player) already placed a 6 in \(province); needs double6"
+                )
+            }
+            doubleSixConsumed = true
+        }
+
         var newState = state
         playerState.hand.remove(at: idx)
+        if doubleSixConsumed {
+            playerState.usedStrategies.insert(.double6)
+        }
         newState.players[player] = playerState
         newState.placements.append(Placement(player: player, province: province, card: card))
 
