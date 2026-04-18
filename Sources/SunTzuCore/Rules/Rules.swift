@@ -88,8 +88,12 @@ public enum Rules {
 
         let newIndex = nextIndex + 1
         if newIndex >= order.count {
-            // End-of-reveal transition. Scoring/draw phases implemented in M5/M6.
-            newState.phase = Scoring.isScoringTurn(newState.turn) ? .scoring : .draw
+            // End-of-reveal: auto-apply scoring on scoring turns, else go to draw.
+            if Scoring.isScoringTurn(newState.turn) {
+                newState = Scoring.applyScoringAndCheckVictory(newState)
+            } else {
+                newState.phase = .draw
+            }
         } else {
             newState.phase = .reveal(nextIndex: newIndex, order: order)
         }
