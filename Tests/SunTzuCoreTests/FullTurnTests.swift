@@ -1,0 +1,78 @@
+import XCTest
+@testable import SunTzuCore
+
+/// M4 — scripted full turn 1 exercising placement + 5 reveals — SPEC §12 M4.
+final class FullTurnTests: XCTestCase {
+
+    func test_turn1_beginnerMode_completeTurn() throws {
+        var s = GameSetup.newGame(seed: 42, beginner: true)
+
+        // Hand-crafted placements. Override hands so the script is deterministic.
+        let bluePlan: [(Province, CardValue)] = [
+            (.qin, .numeric(2)),
+            (.chu, .numeric(4)),
+            (.jinYan, .numeric(7)),
+            (.hanQi, .numeric(1)),
+            (.wu, .numeric(5)),
+        ]
+        let redPlan: [(Province, CardValue)] = [
+            (.qin, .numeric(5)),
+            (.chu, .numeric(3)),
+            (.jinYan, .numeric(6)),
+            (.hanQi, .numeric(8)),
+            (.wu, .numeric(2)),
+        ]
+        let blueCards = bluePlan.map { Card(owner: .blue, value: $0.1) }
+        let redCards = redPlan.map { Card(owner: .red, value: $0.1) }
+        s.players[.blue]!.hand = blueCards
+        s.players[.red]!.hand = redCards
+
+        for (i, (province, _)) in bluePlan.enumerated() {
+            s = try Rules.apply(.placeCard(player: .blue, province: province, card: blueCards[i]), to: s)
+        }
+        for (i, (province, _)) in redPlan.enumerated() {
+            s = try Rules.apply(.placeCard(player: .red, province: province, card: redCards[i]), to: s)
+        }
+
+        guard case .reveal(0, Province.turn1RevealOrder) = s.phase else {
+            return XCTFail("expected reveal(0, turn1Order), got \(s.phase)")
+        }
+
+        for _ in 0..<5 {
+            s = try Rules.apply(.revealNext, to: s)
+        }
+
+        // Expected per-province outcomes:
+        // QIN: 2 vs 5 → Red wins +3 → Red 3
+        // CHU: 4 vs 3 → Blue wins +1 → Blue 1
+        // JIN-YAN: 7 vs 6 → Blue wins +1 → Blue 1
+        // HAN-QI: 1 vs 8 → Red wins +7 → Red 7
+        // WU: 5 vs 2 → Blue wins +3 → Blue 3
+        XCTAssertEqual(s.provinces[.qin]?.controller, .red)
+        XCTAssertEqual(s.provinces[.qin]?.armies, 3)
+        XCTAssertEqual(s.provinces[.chu]?.controller, .blue)
+        XCTAssertEqual(s.provinces[.chu]?.armies, 1)
+        XCTAssertEqual(s.provinces[.jinYan]?.controller, .blue)
+        XCTAssertEqual(s.provinces[.jinYan]?.armies, 1)
+        XCTAssertEqual(s.provinces[.hanQi]?.controller, .red)
+        XCTAssertEqual(s.provinces[.hanQi]?.armies, 7)
+        XCTAssertEqual(s.provinces[.wu]?.controller, .blue)
+        XCTAssertEqual(s.provinces[.wu]?.armies, 3)
+
+        // Reserve bookkeeping — beginner starts at 21 each.
+        // Blue placed 1 + 1 + 3 = 5 → 21 - 5 = 16.
+        // Red placed 3 + 7 = 10 → 21 - 10 = 11.
+        XCTAssertEqual(s.players[.blue]?.reserve, 16)
+        XCTAssertEqual(s.players[.red]?.reserve, 11)
+
+        // Turn 1 is not a scoring turn → end of reveal transitions to .draw.
+        XCTAssertEqual(s.phase, .draw)
+
+        // Hands: each player played all 5 override cards, so hand is now empty.
+        XCTAssertEqual(s.players[.blue]?.hand.count, 0)
+        XCTAssertEqual(s.players[.red]?.hand.count, 0)
+
+        // Placements list still holds the 10 plays (consumed by draw phase in M6).
+        XCTAssertEqual(s.placements.count, 10)
+    }
+}
