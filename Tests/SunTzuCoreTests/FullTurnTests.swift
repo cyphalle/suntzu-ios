@@ -65,14 +65,17 @@ final class FullTurnTests: XCTestCase {
         XCTAssertEqual(s.players[.blue]?.reserve, 16)
         XCTAssertEqual(s.players[.red]?.reserve, 11)
 
-        // Turn 1 is not a scoring turn → end of reveal transitions to .draw.
+        // Turn 1 is not a scoring turn → end of reveal transitions to .draw,
+        // which automatically processes placements (permanents return, others discarded).
         XCTAssertEqual(s.phase, .draw)
 
-        // Hands: each player played all 5 override cards, so hand is now empty.
-        XCTAssertEqual(s.players[.blue]?.hand.count, 0)
-        XCTAssertEqual(s.players[.red]?.hand.count, 0)
+        // Blue placements: 2, 4, 7, 1, 5. Permanents (1..6): 2, 4, 1, 5 → 4 cards return.
+        // Red placements: 5, 3, 6, 8, 2. Permanents (1..6): 5, 3, 6, 2 → 4 cards return.
+        XCTAssertEqual(s.players[.blue]?.hand.count, 4)
+        XCTAssertEqual(s.players[.red]?.hand.count, 4)
 
-        // Placements list still holds the 10 plays (consumed by draw phase in M6).
-        XCTAssertEqual(s.placements.count, 10)
+        // Placements are consumed on entering the draw phase.
+        XCTAssertTrue(s.placements.isEmpty)
+        XCTAssertEqual(s.pendingDraws, Set<Player>([.blue, .red]))
     }
 }

@@ -100,6 +100,8 @@ public struct GameState: Hashable, Sendable, Codable {
     public var eventDeck: [EventCard]
     public var activeEvent: EventCard?
     public var pestesPlayedTotal: Int
+    /// Players who still need to perform their draw this turn — SPEC §5.8.
+    public var pendingDraws: Set<Player>
 
     public init(
         turn: Int,
@@ -112,7 +114,8 @@ public struct GameState: Hashable, Sendable, Codable {
         placements: [Placement] = [],
         eventDeck: [EventCard] = [],
         activeEvent: EventCard? = nil,
-        pestesPlayedTotal: Int = 0
+        pestesPlayedTotal: Int = 0,
+        pendingDraws: Set<Player> = []
     ) {
         self.turn = turn
         self.phase = phase
@@ -125,5 +128,6 @@ public struct GameState: Hashable, Sendable, Codable {
         self.eventDeck = eventDeck
         self.activeEvent = activeEvent
         self.pestesPlayedTotal = pestesPlayedTotal
+        self.pendingDraws = pendingDraws
     }
 }

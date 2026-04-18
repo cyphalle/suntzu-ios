@@ -1,3 +1,5 @@
+import Foundation
+
 /// Public rules engine — SPEC §7.1.
 /// Pure functions over `GameState`. All mutations return a new state.
 public enum Rules {
@@ -8,8 +10,11 @@ public enum Rules {
         switch state.phase {
         case .placement:
             return placementActions(in: state)
-        default:
-            // TODO: legalActions for reveal/scoring/draw in later milestones.
+        case .reveal:
+            return [.revealNext]
+        case .draw:
+            return drawActions(in: state)
+        case .scoring, .gameOver:
             return []
         }
     }
@@ -21,6 +26,10 @@ public enum Rules {
             return try applyPlaceCard(player: player, province: province, card: card, state: state)
         case .revealNext:
             return try applyRevealNext(state: state)
+        case let .pickDrawCard(player, keep, bottom):
+            return try applyPickDrawCard(player: player, keep: keep, bottom: bottom, state: state)
+        case let .pass(player):
+            return try applyPass(player: player, state: state)
         default:
             throw RulesError.notImplemented("Rules.apply: \(action)")
         }
@@ -88,16 +97,147 @@ public enum Rules {
 
         let newIndex = nextIndex + 1
         if newIndex >= order.count {
-            // End-of-reveal: auto-apply scoring on scoring turns, else go to draw.
+            // End-of-reveal: run scoring first on scoring turns; if still alive,
+            // fall through to the draw phase setup.
             if Scoring.isScoringTurn(newState.turn) {
                 newState = Scoring.applyScoringAndCheckVictory(newState)
-            } else {
-                newState.phase = .draw
+            }
+            if case .draw = newState.phase {
+                newState = enterDrawPhase(newState)
+            } else if !Scoring.isScoringTurn(newState.turn) {
+                newState = enterDrawPhase(newState)
             }
         } else {
             newState.phase = .reveal(nextIndex: newIndex, order: order)
         }
         return newState
+    }
+
+    // MARK: - Draw
+
+    /// Enter the draw phase: step 1 returns permanents (numeric 1..6) to hand,
+    /// discards other played cards, and marks both players as pending their pick.
+    /// SPEC §5.8.
+    static func enterDrawPhase(_ state: GameState) -> GameState {
+        var s = state
+        for placement in s.placements {
+            if placement.card.value.isKeepable {
+                guard var ps = s.players[placement.player] else { continue }
+                ps.hand.append(placement.card)
+                s.players[placement.player] = ps
+            }
+            // Non-permanents are removed from play (no discard pile exists).
+        }
+        s.placements.removeAll()
+        s.pendingDraws = [.blue, .red]
+        s.phase = .draw
+        return s
+    }
+
+    private static func drawActions(in state: GameState) -> [GameAction] {
+        var actions: [GameAction] = []
+        for player in state.pendingDraws {
+            guard let ps = state.players[player] else { continue }
+            switch ps.deck.count {
+            case 0:
+                actions.append(.pass(player: player))
+            case 1:
+                actions.append(.pickDrawCard(player: player, keep: ps.deck[0], bottom: nil))
+            default:
+                let top = ps.deck[0]
+                let second = ps.deck[1]
+                actions.append(.pickDrawCard(player: player, keep: top, bottom: second))
+                actions.append(.pickDrawCard(player: player, keep: second, bottom: top))
+            }
+        }
+        return actions
+    }
+
+    private static func applyPickDrawCard(
+        player: Player,
+        keep: Card,
+        bottom: Card?,
+        state: GameState
+    ) throws -> GameState {
+        guard case .draw = state.phase else {
+            throw RulesError.illegalAction("pickDrawCard outside draw phase")
+        }
+        guard state.pendingDraws.contains(player) else {
+            throw RulesError.illegalAction("\(player) is not pending a draw")
+        }
+        guard keep.owner == player else {
+            throw RulesError.illegalAction("cannot draw opponent card")
+        }
+        guard var ps = state.players[player] else {
+            throw RulesError.malformedState("missing player \(player)")
+        }
+
+        switch ps.deck.count {
+        case 0:
+            throw RulesError.illegalAction("cannot pickDrawCard from empty deck; use .pass instead")
+        case 1:
+            guard bottom == nil else {
+                throw RulesError.illegalAction("bottom must be nil when deck has exactly 1 card")
+            }
+            guard keep.id == ps.deck[0].id else {
+                throw RulesError.illegalAction("keep card does not match the only deck card")
+            }
+            ps.deck.removeFirst()
+            ps.hand.append(keep)
+        default:
+            guard let bottom = bottom else {
+                throw RulesError.illegalAction("bottom required when deck has 2+ cards")
+            }
+            let topIds: Set<UUID> = [ps.deck[0].id, ps.deck[1].id]
+            guard topIds.contains(keep.id),
+                  topIds.contains(bottom.id),
+                  keep.id != bottom.id else {
+                throw RulesError.illegalAction("keep/bottom must be the two distinct top-of-deck cards")
+            }
+            ps.deck.removeFirst(2)
+            ps.hand.append(keep)
+            ps.deck.append(bottom)
+        }
+
+        var newState = state
+        newState.players[player] = ps
+        newState.pendingDraws.remove(player)
+        if newState.pendingDraws.isEmpty {
+            newState = advanceToNextTurn(newState)
+        }
+        return newState
+    }
+
+    private static func applyPass(player: Player, state: GameState) throws -> GameState {
+        // For M6, .pass is only legal during draw with an empty deck.
+        guard case .draw = state.phase else {
+            throw RulesError.illegalAction("pass outside draw phase is not supported yet")
+        }
+        guard state.pendingDraws.contains(player) else {
+            throw RulesError.illegalAction("\(player) is not pending a draw")
+        }
+        guard state.players[player]?.deck.isEmpty == true else {
+            throw RulesError.illegalAction("cannot pass draw with a non-empty deck")
+        }
+        var newState = state
+        newState.pendingDraws.remove(player)
+        if newState.pendingDraws.isEmpty {
+            newState = advanceToNextTurn(newState)
+        }
+        return newState
+    }
+
+    private static func advanceToNextTurn(_ state: GameState) -> GameState {
+        var s = state
+        // Turn 9 always terminates in scoring; we should never reach the draw
+        // advance on T9. Defensive branch:
+        if s.turn >= 9 {
+            s.phase = .gameOver(winner: nil)
+            return s
+        }
+        s.turn += 1
+        s.phase = .placement
+        return s
     }
 
     // MARK: - Placement
