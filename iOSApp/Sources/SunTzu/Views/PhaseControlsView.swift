@@ -2,9 +2,6 @@ import SwiftUI
 import SunTzuCore
 
 /// Bottom bar: contextual controls for the current phase.
-/// - Placement: instructs the human to pick a card + province.
-/// - Reveal: "Reveal next combat" button.
-/// - Draw: pick between the two top-of-deck cards.
 struct PhaseControlsView: View {
     @Bindable var store: GameStore
     @Binding var selectedCard: Card?
@@ -13,7 +10,7 @@ struct PhaseControlsView: View {
         Group {
             switch store.state.phase {
             case .placement:
-                placementHint
+                placementControls
             case .reveal:
                 revealControls
             case .draw:
@@ -25,29 +22,65 @@ struct PhaseControlsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var placementHint: some View {
-        HStack(spacing: 8) {
-            if selectedCard != nil {
-                Text("Carte sélectionnée — tape une province")
-                    .foregroundStyle(.white)
-                Spacer()
-                Button("Désélectionner") {
-                    selectedCard = nil
+    // MARK: - Placement
+
+    @ViewBuilder
+    private var placementControls: some View {
+        let drafts = store.humanDrafts.count
+        let ready = store.canValidate
+
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                if selectedCard != nil {
+                    Text("Tape une province (ou glisse la carte)")
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Button("Désélectionner") { selectedCard = nil }
+                        .tint(.white)
+                } else {
+                    Text(hint(drafts: drafts))
+                        .foregroundStyle(.white.opacity(0.75))
+                    Spacer()
+                    Text("\(drafts) / 5")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.6))
                 }
-                .tint(.white)
-            } else {
-                Text("Choisis une carte dans ta main")
-                    .foregroundStyle(.white.opacity(0.75))
-                Spacer()
-                Text("\(humanPlacementsLeft) à poser")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
             }
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Button {
+                Task {
+                    selectedCard = nil
+                    await store.validateDrafts()
+                }
+            } label: {
+                Label("Valider les 5 placements", systemImage: "checkmark.seal.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(ready ? Color.blue.opacity(0.9) : Color.gray.opacity(0.3))
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .disabled(!ready)
         }
-        .padding(12)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+
+    private func hint(drafts: Int) -> String {
+        if drafts == 0 {
+            return "Glisse une carte sur une province (ou tape pour sélectionner)"
+        }
+        if drafts < 5 {
+            return "Il reste \(5 - drafts) province\(drafts == 4 ? "" : "s") à garnir"
+        }
+        return "Tout prêt — relis et valide"
+    }
+
+    // MARK: - Reveal
 
     private var revealControls: some View {
         Button {
@@ -62,6 +95,8 @@ struct PhaseControlsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
+
+    // MARK: - Draw
 
     @ViewBuilder
     private var drawControls: some View {
@@ -127,9 +162,5 @@ struct PhaseControlsView: View {
                 CardView(card: keep, isSelected: false)
             }
         }
-    }
-
-    private var humanPlacementsLeft: Int {
-        5 - store.state.placements.filter { $0.player == GameStore.humanPlayer }.count
     }
 }

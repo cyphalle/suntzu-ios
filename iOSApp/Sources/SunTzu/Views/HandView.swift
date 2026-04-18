@@ -13,6 +13,9 @@ struct HandView: View {
                         .onTapGesture {
                             selectedCard = (card.id == selectedCard?.id) ? nil : card
                         }
+                        .draggable(card.id.uuidString) {
+                            CardView(card: card, isSelected: true)
+                        }
                 }
             }
             .padding(.horizontal, 12)

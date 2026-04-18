@@ -19,6 +19,11 @@ final class GameStore {
     /// Small UI flag so views can show a spinner while MCTS is thinking.
     private(set) var isThinking: Bool = false
 
+    /// Local placement drafts — cards the human has queued onto provinces
+    /// but has not yet committed to the engine. Cleared when the user
+    /// validates or the placement phase ends.
+    private(set) var humanDrafts: [Province: Card] = [:]
+
     static let humanPlayer: Player = .blue
     static let aiPlayer: Player = .red
 
@@ -56,6 +61,76 @@ final class GameStore {
     func submitHumanAction(_ action: GameAction) async {
         applyChecked(action)
         await advanceAutomatic()
+    }
+
+    // MARK: - Drafts (placement preview)
+
+    /// Cards currently in the hand that are not already earmarked for a province.
+    var undraftedHand: [Card] {
+        let drafted = Set(humanDrafts.values.map(\.id))
+        return state.players[Self.humanPlayer]?.hand.filter { !drafted.contains($0.id) } ?? []
+    }
+
+    /// True when all 5 drafts are in and we're still in placement.
+    var canValidate: Bool {
+        if case .placement = state.phase {
+            return humanDrafts.count == 5
+        }
+        return false
+    }
+
+    /// Queue `card` onto `province`. If the card was drafted elsewhere, move
+    /// it. If another card was on the province, kick it back to the hand.
+    func draft(card: Card, to province: Province) {
+        guard case .placement = state.phase else { return }
+        guard state.players[Self.humanPlayer]?.hand.contains(where: { $0.id == card.id }) == true else { return }
+        // SixMarker gate — can't place a second 6 without double6 (engine
+        // enforces this but the UI should avoid offering it).
+        if case .numeric(6) = card.value,
+           state.provinces[province]?.sixMarkers.contains(Self.humanPlayer) == true {
+            let hasDouble6 = state.players[Self.humanPlayer]?.strategyCards.contains(.double6) == true
+            let usedDouble6 = state.players[Self.humanPlayer]?.usedStrategies.contains(.double6) == true
+            if !hasDouble6 || usedDouble6 { return }
+        }
+        // Remove the card from any previous draft province.
+        for (p, c) in humanDrafts where c.id == card.id {
+            humanDrafts.removeValue(forKey: p)
+        }
+        humanDrafts[province] = card
+    }
+
+    /// Remove whatever card is drafted on `province`.
+    @discardableResult
+    func clearDraft(at province: Province) -> Card? {
+        return humanDrafts.removeValue(forKey: province)
+    }
+
+    /// Submit every drafted placement in sequence, then let the engine run
+    /// AI replies and advance to the reveal phase.
+    func validateDrafts() async {
+        guard canValidate else { return }
+        let snapshot = humanDrafts.sorted { a, b in
+            provinceOrder(a.key) < provinceOrder(b.key)
+        }
+        humanDrafts.removeAll()
+        for (province, card) in snapshot {
+            applyChecked(.placeCard(
+                player: Self.humanPlayer,
+                province: province,
+                card: card
+            ))
+        }
+        await advanceAutomatic()
+    }
+
+    private func provinceOrder(_ province: Province) -> Int {
+        switch province {
+        case .qin: return 0
+        case .chu: return 1
+        case .jinYan: return 2
+        case .hanQi: return 3
+        case .wu: return 4
+        }
     }
 
     // MARK: - Automatic advance

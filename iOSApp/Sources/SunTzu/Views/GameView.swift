@@ -15,13 +15,16 @@ struct GameView: View {
 
                 BoardView(
                     state: store.state,
+                    humanDrafts: store.humanDrafts,
                     selectedCard: $selectedCard,
-                    onProvinceTap: handleProvinceTap
+                    onProvinceTap: handleProvinceTap,
+                    onCardDropped: handleCardDrop
                 )
                 .frame(maxHeight: .infinity)
+                .padding(.horizontal, 8)
 
                 HandView(
-                    hand: store.state.players[GameStore.humanPlayer]?.hand ?? [],
+                    hand: handToShow,
                     selectedCard: $selectedCard
                 )
                 .frame(height: 110)
@@ -53,6 +56,13 @@ struct GameView: View {
         }
     }
 
+    private var handToShow: [Card] {
+        if case .placement = store.state.phase {
+            return store.undraftedHand
+        }
+        return store.state.players[GameStore.humanPlayer]?.hand ?? []
+    }
+
     private var thinkingOverlay: some View {
         VStack(spacing: 8) {
             ProgressView().controlSize(.large)
@@ -67,27 +77,32 @@ struct GameView: View {
 
     // MARK: - Interaction
 
+    /// Tap flow:
+    /// - Tap on a drafted province with no card selected → return the card to hand.
+    /// - Tap on any province with a card selected → draft that card there
+    ///   (replacing any existing draft).
+    /// - Tap with neither selection nor draft → no-op.
     private func handleProvinceTap(_ province: Province) {
         guard case .placement = store.state.phase else { return }
-        guard let card = selectedCard else { return }
-        // Card must still be in the hand — guards against a rapid re-tap
-        // after the first Task has removed the card.
-        guard store.state.players[GameStore.humanPlayer]?.hand.contains(where: { $0.id == card.id }) == true else {
+
+        if let card = selectedCard {
+            // Clear old draft if selecting a card already drafted on a different province.
+            store.draft(card: card, to: province)
             selectedCard = nil
             return
         }
-        let alreadyPlaced = store.state.placements.contains {
-            $0.player == GameStore.humanPlayer && $0.province == province
+        if store.humanDrafts[province] != nil {
+            store.clearDraft(at: province)
         }
-        guard !alreadyPlaced else { return }
+    }
 
-        // Clear the selection up front so a fast second tap finds nothing to
-        // re-submit, then fire the async submission.
+    /// Drag-drop flow: same semantics as draft — replaces any existing card
+    /// on the target province.
+    private func handleCardDrop(_ cardID: UUID, _ province: Province) {
+        guard case .placement = store.state.phase else { return }
+        guard let card = store.state.players[GameStore.humanPlayer]?
+            .hand.first(where: { $0.id == cardID }) else { return }
+        store.draft(card: card, to: province)
         selectedCard = nil
-        Task {
-            await store.submitHumanAction(
-                .placeCard(player: GameStore.humanPlayer, province: province, card: card)
-            )
-        }
     }
 }
