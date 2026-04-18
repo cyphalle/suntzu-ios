@@ -23,7 +23,8 @@ public enum GameSetup {
             uniqueKeysWithValues: Province.allCases.map { ($0, ScoreDisplay(t3: 0, t6: 0, t9: 0)) }
         )
 
-        let eventDeck: [EventCard] = events ? EventCard.allCases.shuffled(using: &rng) : []
+        var eventDeck: [EventCard] = events ? EventCard.allCases.shuffled(using: &rng) : []
+        let firstEvent = events && !eventDeck.isEmpty ? eventDeck.removeFirst() : nil
 
         return GameState(
             turn: 1,
@@ -32,7 +33,8 @@ public enum GameSetup {
             players: [.blue: bluePlayer, .red: redPlayer],
             scoreTrack: 0,
             scoreDisplays: stubDisplays,
-            eventDeck: eventDeck
+            eventDeck: eventDeck,
+            activeEvent: firstEvent
         )
     }
 

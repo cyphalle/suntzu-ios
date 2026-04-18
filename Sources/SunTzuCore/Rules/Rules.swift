@@ -105,7 +105,8 @@ public enum Rules {
             }
         }
 
-        switch Combat.resolve(blue: blue.card, red: red.card, state: newState) {
+        let outcome = Combat.resolve(blue: blue.card, red: red.card, state: newState)
+        switch outcome {
         case .tie:
             break
         case let .result(winner, delta):
@@ -115,13 +116,25 @@ public enum Rules {
                 winner: winner,
                 delta: delta
             )
-        case let .plague(plaguePlayer, pesteTotal):
+        case let .plague(_, pesteTotal):
             newState = applyPlague(
                 province: province,
                 pesteTotal: pesteTotal,
                 state: newState
             )
-            _ = plaguePlayer // currently unused outside the outcome; reserved for M8.
+        }
+
+        // Post-combat event triggers — SPEC §5.10, §5.6.6.
+        newState = try EventTriggers.applyPostCombatEvents(
+            newState,
+            bluePlacement: blue,
+            redPlacement: red,
+            outcome: outcome
+        )
+
+        // An event may have ended the game (5th event applied).
+        if case .gameOver = newState.phase {
+            return newState
         }
 
         let newIndex = nextIndex + 1

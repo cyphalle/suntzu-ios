@@ -102,6 +102,8 @@ public struct GameState: Hashable, Sendable, Codable {
     public var pestesPlayedTotal: Int
     /// Players who still need to perform their draw this turn — SPEC §5.8.
     public var pendingDraws: Set<Player>
+    /// Player owed a second strategy choice after the `charsDeGuerre` event fires — SPEC §5.10.
+    public var pendingExtraStrategy: Player?
 
     public init(
         turn: Int,
@@ -115,7 +117,8 @@ public struct GameState: Hashable, Sendable, Codable {
         eventDeck: [EventCard] = [],
         activeEvent: EventCard? = nil,
         pestesPlayedTotal: Int = 0,
-        pendingDraws: Set<Player> = []
+        pendingDraws: Set<Player> = [],
+        pendingExtraStrategy: Player? = nil
     ) {
         self.turn = turn
         self.phase = phase
@@ -129,5 +132,6 @@ public struct GameState: Hashable, Sendable, Codable {
         self.activeEvent = activeEvent
         self.pestesPlayedTotal = pestesPlayedTotal
         self.pendingDraws = pendingDraws
+        self.pendingExtraStrategy = pendingExtraStrategy
     }
 }
